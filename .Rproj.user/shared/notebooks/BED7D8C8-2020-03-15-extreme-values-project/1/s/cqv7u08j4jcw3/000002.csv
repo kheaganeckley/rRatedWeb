@@ -1,0 +1,4 @@
+"0","hill.exponetial <- 1/k*cumsum(E.ordered.quants[length-k+1]) - E.ordered.quants[length-k]"
+"0","hill.weibull <- 1/k*cumsum(WeibullQuants[length-k+1]) - WeibullQuants[length-k]"
+"0","hill.normal <- 1/k*cumsum(NormQuats[length-k+1]) - NormQuats[length-k]"
+"0","hill.pareto <- 1/k*cumsum(ParetoQuants[length-k+1]) - ParetoQuants[length-k]"

@@ -1,0 +1,8 @@
+"0",""
+"0","fig1 <- plot_ly(x = k, y = Hill/hill.exponetial, name='Exponetial ') %>% add_lines() %>% layout(title='Dervitive plots', margin='carpet')"
+"0","fig2 <- plot_ly(x = k, y = Hill.log/hill.weibull, name= 'Weibull' )  %>% add_lines()"
+"0","fig3 <- plot_ly(x = k, y = Hill/hill.normal, name = 'Normal quantiles')  %>% add_lines()"
+"0","fig4 <- plot_ly(x = k, y = Hill.log/hill.normal , name='Log normal')  %>% add_lines()"
+"0","fig5 <- plot_ly(x = k, y = Hill.log/hill.pareto, name='Pareto' )  %>% add_lines()"
+"0",""
+"0","subplot(fig1,fig2,fig3,fig4,fig5, nrows = 3,which_layout =1 )"

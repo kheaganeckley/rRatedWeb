@@ -1,0 +1,8 @@
+"0",""
+"0","fig1 <- plot_ly(x= E.ordered.quants, y= data, name='Exponetial ') %>% add_lines() %>% layout(title='Ordered data vs ordered theotrical data ', margin='carpet')"
+"0","fig2 <- plot_ly(x= WeibullQuants, y=log(data), name= 'Weibull' )  %>% add_lines()"
+"0","fig3 <- plot_ly(x= NormQuats, y=data, name = 'Normal quantiles')  %>% add_lines()"
+"0","fig4 <- plot_ly(x= NormQuats, y= log(data) , name='Log normal')  %>% add_lines()"
+"0","fig5 <- plot_ly(x= ParetoQuants, y= log(data), name='Pareto' )  %>% add_lines()"
+"0",""
+"0","subplot(fig1,fig2,fig3,fig4,fig5, nrows = 3,which_layout =1 )"

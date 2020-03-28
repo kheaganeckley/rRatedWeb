@@ -1,0 +1,7 @@
+"0","E.ordered.quants <- -log(1 - p )"
+"0","NormQuats <- qnorm(p) # for log normal take log of the data "
+"0",""
+"0","##on the log meaning take the log of the data "
+"0","WeibullQuants <- log(-log(1 - p))"
+"0","ParetoQuants <- -log(1 - p)"
+"0",""

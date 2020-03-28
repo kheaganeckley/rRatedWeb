@@ -1,0 +1,9 @@
+"0","```r
+E.ordered.quants <- -log(1 - p )
+NormQuats <- qnorm(p) # for log normal take log of the data 
+
+##on the log meaning take the log of the data 
+WeibullQuants <- log(-log(1 - p))
+ParetoQuants <- -log(1 - p)
+
+```"

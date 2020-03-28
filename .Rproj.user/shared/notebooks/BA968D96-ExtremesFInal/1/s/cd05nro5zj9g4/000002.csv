@@ -1,0 +1,2 @@
+"0","df <- read.csv2('norwegianfire.txt', sep = '\t', col.names = c('claim size', 'year') )"
+"0","head(df)"

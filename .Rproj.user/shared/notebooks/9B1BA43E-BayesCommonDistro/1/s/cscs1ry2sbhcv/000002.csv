@@ -1,0 +1,5 @@
+"0","lambda <- 1/9 #rate of occrance 1 in 9 hours"
+"0",""
+"0","p <- runif(1000)"
+"0","sample <- rex(p, lambda)"
+"0","plot_ly(x=sample) %>% add_histogram()"

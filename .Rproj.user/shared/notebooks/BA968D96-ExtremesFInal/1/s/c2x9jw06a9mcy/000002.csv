@@ -1,0 +1,7 @@
+"0","```r
+k <- 1: (length -1)
+Hill <- cumsum(log( data.81[length - k + 1]) )/ k - log(data.81[length - k])
+
+plot_ly(x=k, y= Hill[1:(length-1)]) %>% add_lines()
+
+```"

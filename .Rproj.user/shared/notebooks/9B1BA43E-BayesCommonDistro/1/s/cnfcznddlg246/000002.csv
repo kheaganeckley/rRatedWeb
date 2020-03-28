@@ -1,0 +1,8 @@
+"0","hpd <- function(nsims, postsims, alpha){ #by Sean vdMerwe... ufs "
+"0","  sorted.postsims <- sort(postsims)"
+"0","  numints <- floor(nsims * alpha)"
+"0","  gap <- round (nsims* (1-alpha))"
+"0","  widths <- sorted.postsims [(1+ gap ) :( numints + gap ) ] - sorted.postsims[1: numints]"
+"0","  HPD <- sorted.postsims [ c ( which.min ( widths ) ,( which.min( widths ) + gap ) ) ]"
+"0","  return(HPD)"
+"0","}"

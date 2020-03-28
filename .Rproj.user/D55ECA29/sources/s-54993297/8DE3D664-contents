@@ -1,0 +1,152 @@
+---
+title: Crono virus 
+author: kheagan
+date: '2020-03-16'
+slug: crono-virus
+categories: []
+tags: []
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+```
+
+
+
+
+
+#  The crono virus example
+I will attempt to model the crono virus naively based on proportions.
+
+
+### Modeling death rate 
+[The corono virus cases in the world and the number of deaths](https://www.worldometers.info/coronavirus/)  
+
+1. 245987 world cases
+2. 10048 world deaths
+
+
+
+### Modeling infection rate
+I choose a province where the crono virus is and number of new cases of the crono virus is decaying. The province Dague meets these requirements.
+
+1. [The number of cases in Dague](https://en.wikipedia.org/wiki/2020_coronavirus_pandemic_in_South_Korea)
+6144 Provence cases 
+2. [The population in Dague](https://en.wikipedia.org/wiki/2020_coronavirus_pandemic_in_South_Korea)
+2489802 Provence size
+
+
+### poulation of South Africa 
+population 56720000
+
+## The model
+This is proportional data. Thus, we use the binomial distribution to model it. We use a beta conjugate prior that is vague with a=0.5, b=0.5. And, then we form the conjugate beta posterior. 
+
+
+The density of the data is binomial. 
+$$f(x| \pi) \propto  \pi^{x}(1-\pi)^{n-x} $$
+The likelihood of the parameters is
+$$l(\pi) \propto  \pi^{\sum x_i}(1-\pi)^{\sum (n-x_i)} $$
+The prior is
+$$p(\pi) \propto \pi^{a-1}(1-\pi)^{b-1} $$
+
+The posterior is 
+$$p(\pi|x) \propto \pi^{a+\sum x_i-1}(1-\pi)^{b+\sum (n-x_i)-1} $$
+
+
+I define the variables that I will use.
+```{r}
+
+# for modling infection rate
+province.cases <- 6144 
+province.size <- 2489802
+  
+
+# for modling morbality rate
+world.cases <- 245987 
+world.deaths <-10048
+
+# poulation of south africa
+population <- 56720000
+
+
+#vague priors
+a <- 0.5
+b <- 0.5
+
+```
+
+
+## modeling the proportion of cases in a population
+```{r}
+
+pi <- seq(0.00001,0.01,0.0001)
+y.crono.num <- dbeta(pi, province.cases+ a, b+ (province.size- province.cases), log = T)
+sims.n.crono <- rbeta(1000,province.cases + a, b+ (province.size- province.cases) )
+
+
+fig1 <- plot_ly(x=pi, y=y.crono.num, width = 1000, name='log posterior pi for crono') %>% add_lines() %>% layout(title=' modeling the proportion of cases in a population')
+fig2 <-  plot_ly(x=pi, y=exp(y.crono.num-max(y.crono.num)), name='scaled posterior pi for crono' ) %>% add_lines()
+
+fig3 <-  plot_ly(x= sims.n.crono, name='simulations of pi for crono' ) %>% add_histogram() 
+
+
+
+subplot(fig1, fig2, fig3, which_layout = 1)
+```
+
+
+
+
+
+## modeling death proportion of a population
+```{r}
+
+pi <- seq(0.02,0.08,0.0001)
+y.crono <- dbeta(pi, world.deaths + a, b+ world.cases,  log= T)
+y.crono.sims <- rbeta(10000,  world.deaths+ a, b+ (world.cases- world.deaths))
+
+
+
+fig1 <- plot_ly(x=pi, y= y.crono, name='posterior pi deaths', width = 1000) %>% add_lines() %>% layout(title='modeling death proportion of a population')
+
+fig2 <- plot_ly(x=pi, y= exp(y.crono-max(y.crono)), name='scaled posterior pi deaths' ) %>% add_lines()
+
+fig3 <- plot_ly(x=y.crono.sims, name='simulated pi deaths') %>% add_histogram()
+
+subplot(fig1, fig2, fig3, which_layout = 1)
+
+```
+
+
+
+
+```{r}
+
+expected.infection <- rbinom(10000, population, y.crono.sims)
+plot_ly(x=expected.infection) %>% add_histogram() %>% layout(title='expected cases', margin='carpet')
+
+```
+
+
+
+
+# crono virus 
+```{r}
+expected.deaths <- sapply(rbinom(1000, population ,sims.n.crono), function(n){
+  mean(rbinom(1000, n, y.crono.sims))
+})
+
+
+plot_ly(x=expected.deaths) %>% add_histogram() %>% layout(title='expected deaths', margin='carpet')
+
+```
+
+```{r}
+mean(expected.deaths)
+```
+
+
+

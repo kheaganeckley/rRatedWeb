@@ -1,0 +1,663 @@
+---
+title: Multinomial
+author: kheagan
+date: '2020-03-15'
+slug: multinomial
+categories: []
+tags: []
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(dplyr)
+```
+
+
+
+# Multinomial notes
+
+varibles and there catogries 
+
+1. Heart attack : has had heart attach | han't had heart attack 
+2. Colestral: over 260 | under 260
+
+
+
+Assuming independence
+$$p(A \ and \ B) = p(A)p(B) $$
+
+
+$$p(A \ and \ B |X) = p(A | X)p(B |X)$$
+where 
+
+$$p(A | X) \propto l(A)p(A) $$
+
+and simmarly for B,
+$$p(B | X) \propto l(B)p(B) $$
+
+We are doing this instead of 
+
+$$p(A \ and \ B |X) \propto l(A  \ and \ B)p(A \ and \ B ) $$
+
+I will try this with multinomial on simulated data 
+
+
+I rewirte each cell i as $\pi_i$ and the count of observations that fall into that cell i as $x_i$
+
+$$ f(x_1, x_2, x_3, x_4|\pi_1,\pi_3,\pi_3,\pi_4) = \frac{n!}{x_1!x_2!x_3!x_4!}\pi_1^{x_1} \pi_2^{x_2} \pi_3^{x_3} \pi_4^{x_4} $$
+
+Note that the cells are independet. The varibles may or may not be depent, for example, the vrible  *has or has not heart attack* may depend on *cholsetral levels*. But this is taken care of when we account for all the possible comibnations of catogries. Thus by indpendece we can rewrite the posterior as
+
+$$ p(\pi_1,\pi_2,\pi_3,\pi_4|x) \propto p(\pi_1| x)p(\pi_2| x)p(\pi_3| x) p(\pi_4| x) $$
+
+,then for 
+$$ p( \pi_1 | x) \propto l(\pi_1,\pi_2, \pi_3, \pi_4)p(\pi_1).$$
+
+
+
+
+Where the liklihood can now be model by the binomail distribution, the prior by the beta distribution, and thus, the posterior by the beta distribution.
+$$ p( \pi_i | x) \propto l(\pi_i)p(\pi_i) $$ 
+
+The density of the data is binomial. 
+$$ f(x| \pi_i) \propto  \pi_i^{x}(1-\pi_i)^{n-x} $$
+
+The likihood of the paramters is
+$$ l(\pi_i) \propto  \pi_i^{\sum x_i}(1-\pi_i)^{\sum (n-x_i)}$$
+
+The prior is
+$$ p(\pi_i) \propto \pi_i^{a-1}(1-\pi_i)^{b-1}$$
+
+The posterior for each $\pi_i$ is 
+
+$$p(\pi_i|x) \propto \pi_i^{a+\sum x_i-1}(1-\pi_i)^{b+\sum (n-x_i)-1} $$
+
+
+####aside 
+This is simular to the joint posterior distribution. The posterior of the joint paramters using a drikelt prior is 
+$$ p(all \ \pi_i|x) \propto \prod_i\pi_i^{a_i+\sum x_i-1} $$
+Which in our case would be 
+$$ p(\pi_1,\pi_2,\pi_3,\pi_4|x) \propto \pi_1^{a_1+\sum x_1-1} \pi_2^{a_2+\sum x_2-1} \pi_3^{a_3+\sum x_3-1} \pi_4^{a_4+\sum x_4-1}$$
+*But now we use gibbs samlping* and arive at the aformentioned
+The posterior is 
+$$ p(\pi_i|x) \propto \pi_i^{a+\sum x_i-1}(1-\pi_i)^{b+\sum (n-x_i)-1}$$
+
+where $\pi_i|x$ is $beta(a+\sum x_i, b+\sum n-x_i)$
+
+
+# An example
+
+
+
+$$ P(A \ relisation| certain \ features)  = p( has \ heart \ attack \cap \ over \ 260)^{yes/no} p( has \ heart \ attack \cap \ under \ 260)^{yes/no}*$$
+$$ p( hasn't \ heart \ attack \cap \ over \ 260)^{yes/no} p( hasn't \ heart \ attack \cap \ under \ 260)^{yes/no}$$
+
+
+```{r}
+HasHeartAttack <- c(51,41, 51+41)
+HasNotHeartAttack <- c(992, 240, 992+240)
+total <- c(1043,280, 1329)
+
+data.frame(HasHeartAttack,HasNotHeartAttack,total, row.names = c('Cholestral over 260', 'Cholestral under 260', 'Total') )
+```
+
+My notation
+
+total observations = 1329
+
+1. $ \pi_1 $ = P( has had heart attack and cholestral over 260)
+2. $ \pi_2 $ = P( has had heart attack and cholestral under 260)
+3. $ \pi_3 $ = P( hasn't had heart attack and cholestral over 260)
+4. $ \pi_4 $ = P( hasn't had heart attack and cholestral under 260)
+
+
+1. $ \X_1 $ = count of indivdulas that has had heart attack and cholestral over 260
+2. $ \X_2 $ = count of indivdulas that has had heart attack and cholestral under 260
+3. $ \X_3 $ = count of indivdulas that hasn't had heart attack and cholestral over 260
+4. $ \X_4 $ = count of indivdulas that hasn't had heart attack and cholestral under 260
+
+The posterior is 
+$$ p(\pi_i|x) \propto \pi_i^{a+\sum x_i-1}(1-\pi_i)^{b+\sum (n-x_i)-1}$$
+
+```{r}
+pi.possible.values <- seq(0,1,0.001)
+
+a <- 0.5
+b <- 0.5 
+
+X_1 <- 51
+X_2 <- 41
+X_3 <- 992
+X_4 <- 240
+
+total <- 1329
+
+pi_1 <- dbeta(pi.possible.values, a + X_1, b + total - X_1)
+pi_2 <- dbeta(pi.possible.values, a + X_2, b + total - X_2)
+pi_3 <- dbeta(pi.possible.values, a + X_3, b + total - X_3)
+pi_4 <- dbeta(pi.possible.values, a + X_4, b + total - X_4)
+
+sims.pi_1 <- rbeta(1000, a + X_1, b + total - X_1)
+sims.pi_2 <- rbeta(1000, a + X_2, b + total - X_2)
+sims.pi_3 <- rbeta(1000, a + X_3, b + total - X_3)
+sims.pi_4 <- rbeta(1000, a + X_4, b + total - X_4)
+
+
+plot_ly(x=pi.possible.values, y=log(pi_1), name = 'pi for has had heart attack and cholestral over 260', width =1000) %>% add_lines() %>%
+  add_lines(x=pi.possible.values, y=log(pi_2), name = 'pi for has had heart attack and cholestral under 260') %>%
+  add_lines(x=pi.possible.values, y=log(pi_3),  name = 'pi for has not had heart attack and cholestral over 260') %>%
+  add_lines(x=pi.possible.values, y=log(pi_4),  name = 'pi for has not  had heart attack and cholestral under 260') %>%
+  layout(title='log posterior for pi')
+
+
+plot_ly(x=pi.possible.values, y=pi_1/max(pi_1), name = 'pi for has had heart attack and cholestral over 260', width =1000) %>% add_lines() %>%
+  add_lines(x=pi.possible.values, y=pi_2/max(pi_2), name = 'pi for has had heart attack and cholestral under 260') %>%
+  add_lines(x=pi.possible.values, y=pi_3/max(pi_3),  name = 'pi for has not had heart attack and cholestral over 260') %>%
+  add_lines(x=pi.possible.values, y=pi_4/max(pi_4),  name = 'pi for has not  had heart attack and cholestral under 260') %>%
+  layout(title='scaled posterior for pi')
+
+plot_ly(x=sims.pi_1, name = 'pi for has had heart attack and cholestral over 260', alpha = 0.6, width =1000) %>% add_histogram() %>%
+  add_histogram(x=sims.pi_2, name = 'pi for has had heart attack and cholestral under 260') %>%
+  add_histogram(x=sims.pi_3,  name = 'pi for has not had heart attack and cholestral over 260') %>%
+  add_histogram(x=sims.pi_4,  name = 'pi for has not  had heart attack and cholestral under 260') %>%
+  layout(title='predictive density for pi', barmode='overlay')
+
+
+
+
+```
+
+
+```{r}
+n.sims <- 1000
+n.size <- 100
+X_1.obs <- rbinom(n.sims,n.size,sims.pi_1)
+X_2.obs <- rbinom(n.sims,n.size,sims.pi_2)
+X_3.obs <- rbinom(n.sims,n.size,sims.pi_3)
+X_4.obs <- rbinom(n.sims,n.size,sims.pi_4)
+
+
+
+plot_ly(x=X_1.obs, name= 'observations for has had heart attack and cholestral over 260', width =1000) %>% add_histogram() %>%
+   add_histogram(x= X_2.obs,  name = 'observations for has had heart attack and cholestral under 260')  %>%
+   add_histogram(x= X_3.obs,  name = 'observations for has not had heart attack and cholestral over 260')  %>%
+   add_histogram(x= X_4.obs, name= 'observations for has not  had heart attack and cholestral under 260') %>%
+   layout(title='Simulations of new observations', barmode='overlay')
+
+
+```
+
+
+
+## Bring the freaq out the beyes 
+### mean contgency table of simulated results 
+```{r}
+
+sims.has.heart.attack      <- c( mean(X_1.obs)       , mean(X_2.obs)        , mean(X_1.obs+X_2.obs))
+sims.has.not.heart.attack  <- c( mean(X_3.obs)       , mean(X_4.obs)        , mean(X_3.obs+X_4.obs))
+Total                      <- c(mean(X_1.obs+X_3.obs), mean(X_2.obs+X_4.obs), mean(X_1.obs+X_2.obs+X_3.obs+X_4.obs) )
+
+df <- data.frame(sims.has.heart.attack,sims.has.not.heart.attack, Total, row.names = c('cholestral over 260', 'cholestral under 260','Total'))
+colnames(df) <- c('has had heart attack','has not had heart attack','Total')
+
+df
+#total = sum(X_1.obs+X_2.obs +X_3.obs+X_4.obs )
+```
+
+
+
+
+If two events are independent then..
+$$p(A \cap B) = p(A)p(B)$$
+We can construct a hypothesis test. The null hypothesis stats that *more or less*
+$$ 0 = p(A \cap B) - p(A)p(B)$$
+We will test this hypothesis with our simulated observations
+```{r}
+checking.indepedece.X.1.obs <- (X_1.obs/(X_1.obs+X_2.obs+X_3.obs+X_4.obs))  - ((X_1.obs/(X_1.obs+X_3.obs))*(X_1.obs/(X_1.obs+X_2.obs)))
+checking.indepedece.X.2.obs <- (X_2.obs/(X_1.obs+X_2.obs+X_3.obs+X_4.obs))  - ((X_2.obs/(X_2.obs+X_4.obs))*(X_1.obs/(X_1.obs+X_2.obs)))
+checking.indepedece.X.3.obs <- (X_3.obs/(X_1.obs+X_2.obs+X_3.obs+X_4.obs))  - ((X_3.obs/(X_1.obs+X_3.obs))*(X_1.obs/(X_3.obs+X_4.obs)))
+checking.indepedece.X.4.obs <- (X_4.obs/(X_1.obs+X_2.obs+X_3.obs+X_4.obs))  - ((X_4.obs/(X_2.obs+X_4.obs))*(X_1.obs/(X_3.obs+X_4.obs)))
+
+
+
+fig1 <- plot_ly(x=checking.indepedece.X.1.obs, name='observations for has had heart attack and cholestral over 260', width = 1200) %>%
+  add_histogram() %>%
+  layout(title='Testing if aproximatly 0 = P(AB) -P(A)P(B) ')
+fig2 <- plot_ly(x=checking.indepedece.X.2.obs, name='observations for has had heart attack and cholestral under 260') %>% add_histogram()
+fig3 <- plot_ly(x=checking.indepedece.X.3.obs,  name = 'observations for has not had heart attack and cholestral over 260') %>% add_histogram()
+fig4 <- plot_ly(x=checking.indepedece.X.4.obs, name= 'observations for has not  had heart attack and cholestral under 260') %>% add_histogram()
+subplot(fig1, fig2, fig3, fig4, nrows = 2, which_layout = 1)
+
+```
+
+From the above we can reject the null hypothesis for has not had heart attack and cholestral over 26. And conclude there is a relationship between these events. By that logic the statment 
+
+$$p(ABCD) = p(A)p(B)p(C)p(B)$$
+is false. And conclude that there is a relationship between cholestral and heart attack.
+
+
+# latent class notes
+
+Consider if pateints where experiencing symptoms A, B and C.
+
+1. ) A : yes/ no
+2. ) B : yes/ no
+3. ) C : yes/ no
+
+And we wanted to model if they have disease X, Y and Z
+
+
+
+
+$$  P(Has \ disease \ z_i)   =  p(A \cap B \cap C| z_i)^{yes/no}*p(A \cap B \cap \not C| z_i)^{yes/no}*p(A \cap \not B \cap C| z_i)^{yes/no}*p(A \cap \not B \cap \not C| z_i)^{yes/no}* $$
+
+$$p(\not A \cap B \cap C| z_i)^{yes/no}*p( \not A \cap B \cap \not C| z_i)^{yes/no}*p(\not A \cap \not B \cap C| z_i)^{yes/no}*p(A \cap \not B \cap \not C| z_i)^{yes/no}$$
+
+ 
+
+
+That is a huge model for very simple data. This is where latent classes come in. So instead we model, because of local independece...
+
+$$  P(Has \ disease \ z_i)   =  p(A| zi)^{yes/no}* p(B| zi)^{yes/no}* p(C| zi)^{yes/no}$$
+
+
+This is how we will get the final results
+
+$$   P(z_1, z_2,z_3 | symptoms \ A,B,C ) \propto P(Has \ disease \ z_1)  P(Has \ disease \ z_2) P(Has \ disease \ z_3)   $$ 
+
+
+### simulation
+```{r}
+n.sims <- 1000
+
+#these would be multinomial for more than 2 catogries
+
+
+#10 pateints come into the hospital 
+
+rows <- matrix(NA, nrow = n.sims, ncol = 4)
+
+for (i in 1:n.sims) {
+  Disease <- t(rmultinom(1, 1, c(0.5,0.2,0.3)))[1,]
+  X <-  Disease[1]
+  Y <-  Disease[2]
+  
+  D <- NA
+  symptoms <- c(NA,NA,NA)
+  
+  
+  if(X == 1){
+    symptoms <- t(rmultinom(1, 1, c(0.1,0.8,0.1)))[1,]
+    D <- 'X'
+    
+  } else if(Y == 1){
+    
+    symptoms <- t(rmultinom(1, 1, c(0,0.2,0.8)))[1,]
+    D <- 'Y'  
+    
+  }else{
+    symptoms <- t(rmultinom(1, 1, c(0.9,0.05,0.05)))[1,]
+    D <- 'Z'  
+  }
+  
+ rows[i,] <-  c(symptoms, D)
+}
+
+
+df <- as.data.frame(rows)
+colnames(df) <- c('A','B','C','Disease')
+head(df)
+
+summary(df)
+```
+
+
+So forgeting how i made the table. Let's start 
+
+```{r}
+
+X <-df[df$Disease == 'X',]
+Y <-df[df$Disease == 'Y',]
+Z <-df[df$Disease == 'Z',]
+
+table(df)
+#plot_ly() %>% add_pie(data = X[], values = ~n)
+
+```
+
+
+
+
+
+Let's consider disease X
+
+```{r}
+head(X)
+```
+
+
+
+*But now we use gibbs samlping* and arive at the aformentioned
+The posterior probablity $\pi $ for each symptom is  
+$$ p(\pi_i|x) \propto \pi_i^{a+\sum x_i-1}(1-\pi_i)^{b+\sum (n-x_i)-1}$$
+
+```{r}
+A <-table(X$A)[2]
+B <- table(X$B)[2]
+C <- table(X$C)[2]
+
+a <- 0.5
+b <- 0.5
+
+sum.A <- A
+sum.B <- B
+sum.C <- C
+
+x<- c(sum.A, sum.B, sum.C)
+
+Total <- sum.A + sum.B + sum.C
+
+param <- seq(0,1,0.001)
+pi.A <- dbeta(param, a+sum.A, b + Total-sum.A , log = TRUE)
+pi.B <- dbeta(param, a+sum.B, b + Total-sum.B , log = TRUE)
+pi.C <- dbeta(param, a+sum.C, b + Total-sum.C , log = TRUE)
+
+n.sims <- 1000
+X.sims.pi.A <- rbeta(n.sims, a+sum.A, b + Total-sum.A)
+X.sims.pi.B <- rbeta(n.sims, a+sum.B, b + Total-sum.B)
+X.sims.pi.C <- rbeta(n.sims, a+sum.C, b + Total-sum.C)
+
+
+fig1 <- plot_ly(x=param, y=pi.A, name='log post pi symptoms A', width = 1000) %>% add_lines() %>% layout(title='Disease X',  barmode='overlay') %>%
+add_lines(x=param, y=pi.B, name='log post pi symptoms B') %>% 
+add_lines(x=param, y=pi.C, name='log post pi symptoms C')
+
+fig2 <- plot_ly(x=param, y=exp(pi.A-max(pi.A)), name='scaled pi post symptoms A') %>% add_lines() %>%
+add_lines(x=param, y=exp(pi.B-max(pi.B)), name='scaled post pi symptoms B') %>%
+add_lines(x=param, y=exp(pi.C-max(pi.C)), name='scaled post pi symptoms C') 
+
+fig3 <- plot_ly(x=X.sims.pi.A, name='sims pi symptoms A',alpha = 0.7) %>% add_histogram() %>% 
+add_histogram(x=X.sims.pi.B, name='sims pi symptoms B') %>%
+add_histogram(x=X.sims.pi.C, name='sims pi symptoms C')
+
+
+subplot(fig1,fig2, fig3, which_layout = 1)
+```
+
+
+
+```{r}
+A <-table(Y$A)[2]
+B <- table(Y$B)[2]
+C <- table(Y$C)[2]
+ 
+sum.A <- A
+sum.B <- B
+sum.C <- C
+
+y <- c(sum.A, sum.B, sum.C)
+ 
+
+a <- 0.5
+b <- 0.5
+
+
+Total <- sum.A + sum.B + sum.C
+
+param <- seq(0,1,0.001)
+pi.A <- dbeta(param, a+sum.A, b + Total-sum.A , log = TRUE)
+pi.B <- dbeta(param, a+sum.B, b + Total-sum.B , log = TRUE)
+pi.C <- dbeta(param, a+sum.C, b + Total-sum.C , log = TRUE)
+
+n.sims <- 1000
+Y.sims.pi.A <- rbeta(n.sims, a+sum.A, b + Total-sum.A)
+Y.sims.pi.B <- rbeta(n.sims, a+sum.B, b + Total-sum.B)
+Y.sims.pi.C <- rbeta(n.sims, a+sum.C, b + Total-sum.C)
+
+
+fig1 <- plot_ly(x=param, y=pi.A, name='log post pi symptoms A', width = 1000) %>% add_lines() %>% layout(title='Disease Y',  barmode='overlay') %>%
+add_lines(x=param, y=pi.B, name='log post pi symptoms B') %>% 
+add_lines(x=param, y=pi.C, name='log post pi symptoms C')
+
+fig2 <- plot_ly(x=param, y=exp(pi.A-max(pi.A)), name='scaled pi post symptoms A') %>% add_lines() %>%
+add_lines(x=param, y=exp(pi.B-max(pi.B)), name='scaled post pi symptoms B') %>%
+add_lines(x=param, y=exp(pi.C-max(pi.C)), name='scaled post pi symptoms C') 
+
+fig3 <- plot_ly(x=Y.sims.pi.A, name='sims pi symptoms A',alpha = 0.7) %>% add_histogram() %>% 
+add_histogram(x=Y.sims.pi.B, name='sims pi symptoms B') %>%
+add_histogram(x=Y.sims.pi.C, name='sims pi symptoms C')
+
+
+subplot(fig1,fig2, fig3, which_layout = 1)
+```
+
+
+```{r}
+A <-table(Z$A)[2]
+B <- table(Z$B)[2]
+C <- table(Z$C)[2]
+ 
+sum.A <- A
+sum.B <- B
+sum.C <- C
+
+
+a <- 0.5
+b <- 0.5
+z <- c(sum.A, sum.B, sum.C)
+
+Total <- sum.A + sum.B + sum.C
+
+
+param <- seq(0,1,0.001)
+pi.A <- dbeta(param, a+sum.A, b + Total-sum.A , log = TRUE)
+pi.B <- dbeta(param, a+sum.B, b + Total-sum.B , log = TRUE)
+pi.C <- dbeta(param, a+sum.C, b + Total-sum.C , log = TRUE)
+
+n.sims <- 1000
+Z.sims.pi.A <- rbeta(n.sims, a+sum.A, b + Total-sum.A)
+Z.sims.pi.B <- rbeta(n.sims, a+sum.B, b + Total-sum.B)
+Z.sims.pi.C <- rbeta(n.sims, a+sum.C, b + Total-sum.C)
+
+
+fig1 <- plot_ly(x=param, y=pi.A, name='log post pi symptoms A', width = 1000) %>% add_lines() %>% layout(title='Disease Z',  barmode='overlay') %>%
+add_lines(x=param, y=pi.B, name='log post pi symptoms B') %>% 
+add_lines(x=param, y=pi.C, name='log post pi symptoms C')
+
+fig2 <- plot_ly(x=param, y=exp(pi.A-max(pi.A)), name='scaled pi post symptoms A') %>% add_lines() %>%
+add_lines(x=param, y=exp(pi.B-max(pi.B)), name='scaled post pi symptoms B') %>%
+add_lines(x=param, y=exp(pi.C-max(pi.C)), name='scaled post pi symptoms C') 
+
+fig3 <- plot_ly(x=Z.sims.pi.A, name='sims pi symptoms A',alpha = 0.7) %>% add_histogram() %>% 
+add_histogram(x=Z.sims.pi.B, name='sims pi symptoms B') %>%
+add_histogram(x=Z.sims.pi.C, name='sims pi symptoms C')
+
+
+subplot(fig1,fig2, fig3, which_layout = 1)
+```
+
+
+
+```{r}
+
+a <- 0.5
+b <- 0.5
+
+sum.X <- length(X$Disease)
+sum.Y <- length(Y$Disease)
+sum.Z <- length(Z$Disease)
+
+Total <- sum.X + sum.Y + sum.Z
+
+param <- seq(0,1,0.001)
+pi.X <- dbeta(param, a+sum.X, b + Total-sum.X , log = TRUE)
+pi.Y <- dbeta(param, a+sum.Y, b + Total-sum.Y , log = TRUE)
+pi.Z <- dbeta(param, a+sum.Z, b + Total-sum.Z , log = TRUE)
+
+n.sims <- 1000
+sims.pi.X <- rbeta(n.sims, a+sum.X, b + Total-sum.X)
+sims.pi.Y <- rbeta(n.sims, a+sum.Y, b + Total-sum.Y)
+sims.pi.Z <- rbeta(n.sims, a+sum.Z, b + Total-sum.Z)
+
+
+fig1 <- plot_ly(x=param, y=pi.X, name='log post pi n cases dieases X', width = 1000) %>% add_lines() %>% layout(title='Propotion of patients with a certian disease',  barmode='overlay') %>%
+add_lines(x=param, y=pi.Y, name='log post pi n cases dieases Y') %>% 
+add_lines(x=param, y=pi.Z, name='log post pi n cases dieases Z')
+
+fig2 <- plot_ly(x=param, y=exp(pi.X-max(pi.X)), name='scaled pi post n cases dieases X') %>% add_lines() %>%
+add_lines(x=param, y=exp(pi.Y-max(pi.Y)), name='scaled post n cases pi dieases Y') %>%
+add_lines(x=param, y=exp(pi.Z-max(pi.Z)), name='scaled post n cases pi dieases Z') 
+
+fig3 <- plot_ly(x=sims.pi.X, name='sims pi n cases dieases X',alpha = 0.7) %>% add_histogram() %>% 
+add_histogram(x=sims.pi.Y, name='sims pi n cases dieases Y') %>%
+add_histogram(x=sims.pi.Z, name='sims pi n cases dieases Z')
+
+
+subplot(fig1,fig2, fig3, which_layout = 1)
+
+
+
+```
+
+
+
+# Before we get the freq out of bayes 
+
+### a quick summary of what we observed
+
+A pivot table of disease and sympotoms
+```{r}
+observ.table <- data.frame(x,y,z, row.names = c('A', 'B','C'))
+observ.table 
+
+plot_ly() %>% add_heatmap(x=c('X','Y','Z'), y=c('A','B','C'), z=as.matrix(observ.table)) %>% layout(title='heatmap of observations')
+
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+X.sim.obs <- rbinom(1000, 100, sims.pi.X )
+Y.sim.obs <- rbinom(1000, 100, sims.pi.Y )
+Z.sim.obs <- rbinom(1000, 100, sims.pi.Z )
+
+plot_ly(alpha = 0.7, width=1100) %>% add_histogram(x= X.sim.obs, name='Number of pateinets with disease X')  %>% 
+  add_histogram(x= Y.sim.obs, name='Number of pateinets with disease Y')  %>% 
+  add_histogram(x= Z.sim.obs, name='Number of pateinets with disease Z') %>% 
+  layout(title='histogram of simulated number of patents with a certain disease(out of 100 patents)', barmode='overlay')
+
+```
+
+
+## showing how the diffrent n simulate number of paentes (out of 100) who have disease x, affect simulations of symptom A given disease X 
+
+```{r}
+
+plot(ecdf(X.sim.obs))
+
+samples.X.A <-t(as.matrix(sapply(sort(X.sim.obs), function(n){
+  
+  bin <- rbinom(1000, n, X.sims.pi.A) 
+  table(cut(bin, 50))
+  } )))
+
+ 
+
+plot_ly() %>% add_heatmap(z=samples.X.A)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+simulations for amount of cases of each disease 
+```{r}
+
+samples.X.A <- sapply(X.sim.obs, function(n){
+  A.obs <- rbinom(100, n, X.sims.pi.A)
+  mean(A.obs)
+  })
+samples.X.B <- sapply(X.sim.obs, function(n){
+  B.obs <- rbinom(100, n, X.sims.pi.B)
+  mean(B.obs)
+  })
+samples.X.C <- sapply(X.sim.obs, function(n){
+  C.obs <- rbinom(100, n, X.sims.pi.C)
+  mean(C.obs)
+  })
+
+samples.Y.A <- sapply(Y.sim.obs, function(n){
+  A.obs <- rbinom(100, n, Y.sims.pi.A)
+  mean(A.obs)
+  })
+samples.Y.B <- sapply(Y.sim.obs, function(n){
+  B.obs <- rbinom(100, n, Y.sims.pi.B)
+  mean(B.obs)
+  })
+samples.Y.C <- sapply(Y.sim.obs, function(n){
+  C.obs <- rbinom(100, n, Y.sims.pi.C)
+  mean(C.obs)
+  })
+
+samples.Z.A <- sapply(Z.sim.obs, function(n){
+  A.obs <- rbinom(100, n, Z.sims.pi.A)
+  mean(A.obs)
+  })
+samples.Z.B <- sapply(Z.sim.obs, function(n){
+  B.obs <- rbinom(100, n, Z.sims.pi.B)
+  mean(B.obs)
+  })
+samples.Z.C <- sapply(Z.sim.obs, function(n){
+  C.obs <- rbinom(100, n, Z.sims.pi.C)
+  mean(C.obs)
+  })
+
+
+
+
+
+
+
+fig1 <- plot_ly(x=samples.X.A, name='symptom A', color = 'blue', width = 1000) %>% add_histogram() %>%
+add_histogram(x=samples.X.B, name='symptom B', color='red') %>% 
+add_histogram(x=samples.X.C, name='Symptom C', color='green') %>%
+  layout(title='Simulations for occurances a diseases symptoms( out of 100)', barmode='overlay', xaxis=list(title='disease X'))
+
+
+fig2 <- plot_ly(x=samples.Y.A, name='symptom A',  color = 'blue') %>% add_histogram() %>%
+add_histogram(x=samples.Y.B, name='symptom B', color='red') %>% 
+add_histogram(x=samples.Y.C, name='Symptom C',  color='green') %>%
+  layout(title='For disease Y', barmode='overlay', xaxis=list(title='disease Y'))
+
+fig3 <- plot_ly(x=samples.Z.A, name='symptom A',  color = 'blue') %>% add_histogram() %>%
+add_histogram(x=samples.Z.B, name='symptom B', color='red') %>% 
+add_histogram(x=samples.Z.C, name='Symptom C', color='green') %>%
+  layout(title='For disease Z', barmode='overlay', xaxis=list(title='disease Z'))
+
+subplot(fig1, fig2, fig3, titleX = TRUE, which_layout = 1)
+
+
+```
+
+

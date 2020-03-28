@@ -1,0 +1,1348 @@
+---
+title: 1st Baysian portfolio
+author: kheagan
+date: '2020-03-15'
+slug: 1st-baysian-portfolio
+categories: []
+tags: []
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(rstan)
+```
+
+
+
+
+
+---
+
+
+
+### content
+the content is divided into 9 sections:
+
+1) 20 distributions
+2) Simulations from a distribution with 4 parameters
+3) Redoing the presentation without and then with rstan! 
+4) The secretary problems
+5) Exercise 8
+6) Exercise 4
+7) My multinomial example
+8) The crono virus example
+9) My notes
+
+# 1) 20 distributions
+
+From 2nd year Bayesian Statistical Inference by Dr I. Garisch and et.al.
+
+### Bernoulli 
+
+$0 \leq p \leq 1$ and x = 0 or 1 
+
+### Binomial 
+
+$0 \leq p \leq 1$, $x =0,1,...n$ and n is postive integer
+
+### Geometric 
+
+$0 \leq p \leq 1$ and $x =0,1,...n$
+
+### Negative Binomial 
+
+$0 \leq p \leq 1$, $x =0,1,...n$ and r = 1,2,3,...
+
+### Hypergeometric
+
+$x =0,1,...n$, n is a positive integer, and r  and m are a nonnegative integer (can't be more than n)
+
+### Poisson
+
+$x =0,1,...n$ and $\lambda \geq 0$
+
+### Uniform 
+a ≤ x ≤ b
+
+### Exponential
+for x ≥ 0 where λ > 0
+
+### Gamma:
+for x ≥ 0 where α, λ > 0
+
+### Normal
+for $-\infty$ < x < $\infty$ 
+where $-\infty$ < μ <  $\infty$ and σ > 0
+
+### Beta
+$0 \leq x \leq 1$ where a, b > 0
+
+
+
+### possion binomail distriution 
+[link](https://en.wikipedia.org/wiki/Poisson_binomial_distribution)
+$0 \leq p \leq 1$ for each of the n trials
+k successful trials k is an elememnt of {0, 1, ... n}
+
+### Beta-binomial distribution 
+[link](https://en.wikipedia.org/wiki/Beta-binomial_distribution)
+$n \in N_0 $, the number of trials
+a > 0
+B > 0
+k is an elememnt of {0, 1, ... n}
+
+
+
+### Rice distribution 
+[link](https://en.wikipedia.org/wiki/Rice_distribution)
+$v \geq  0$ distance between a point and the center of the bivariate distribution.
+$\sigma \geq 0$ Spread 
+$x \in [0, \infty)$
+
+### Frechet distribution
+[link](https://en.wikipedia.org/wiki/Fr%C3%A9chet_distribution)
+a $\in (0,\infty)$
+s $\in (0,\infty)$
+m $\in (0,\infty)$
+x > m
+
+### Laplace distribution
+[link](https://en.wikipedia.org/wiki/Laplace_distribution)
+$b > 0$
+$ \mu \in \R $
+x is $\R$
+
+### Log cauchy distribution
+[link](https://en.wikipedia.org/wiki/Log-Cauchy_distribution)
+
+$\sigma > 0$
+$ \mu \in \R$
+x $\in (0,\infty)$
+
+### Rayleigh distribution
+[link](https://en.wikipedia.org/wiki/Rayleigh_distribution)
+
+$\sigma > 0$
+x $\in [0,\infty)$
+
+### Chi squared distribution
+[link](https://en.wikipedia.org/wiki/Chi-squared_distribution)
+
+x $\in N>0$
+x $\in [0,\infty)$
+
+
+###  The F distribution 
+[link](https://en.wikipedia.org/wiki/F-distribution)
+d1, d2 > 0 deg. of freedom
+x $\in (0,\infty)$ if d1 = 1, otherwise x $\in [0,\infty)$
+
+
+# 2)  Simulations from a distribution with 4 parameters
+
+I choose a multinomial as a distribution with four parameters to simulate from. To make things more practical, I decided to label the simulated output as John, Marry, Petter, and Bob's number of pizza slices they take from a pizza (with 10 slices). It is given that the expected proportions that they take from the pizza are, respectively, 0.2, 0.3,0.4, and 0.1. Thus I will use the multinomial distribution.    
+
+
+$$ f(x|\pi_1,\pi_3,\pi_3,\pi_4) = \frac{n!}{x_1!x_2!x_3!x_4!}\pi_1^{x_1} \pi_2^{x_2} \pi_3^{x_3} \pi_4^{x_4} $$
+
+$$ f(x|0.2, 0.3,0.4,0.1) = \frac{n!}{x_1!x_2!x_3!x_4!}0.2^{x_1} 0.3^{x_2} 0.4^{x_3} 0.1^{x_4} $$
+
+
+I simulated 10000 samples of size 40 from a multinomial distribution.  Using the multinomial function, r returned a matrix that I partitioned as vectors of size 40 for John, Marry, Petter, and Bob. Then used this 10000 vectors to create a matrix for john, Marry, Petter and bob, and use them to make summary statistics.   
+
+
+
+```{r}
+
+n.sims <- 10000
+
+John <- matrix(NA, nrow = n.sims, ncol = 40)
+marry  <- matrix(NA, nrow = n.sims, ncol = 40)
+peter <- matrix(NA, nrow = n.sims, ncol = 40)
+bob <- matrix(NA, nrow = n.sims, ncol = 40)
+
+
+for (i in 1 : n.sims) {
+
+  mat <-  t(rmultinom(40,10,c(0.2,0.3,0.4,0.1)))
+  John[i,] <- mat[,1]
+  marry[i,] <-mat[,2]
+  peter[i,] <- mat[,3]
+  bob[i,] <- mat[,4]
+
+}
+
+```
+
+
+
+This creates a sample mean vector of the 10000 samples for John, Marry, Petter, and Bob.
+
+```{r}
+mean.matrix.all.varibles <- matrix(NA, nrow = n.sims , ncol = 4)
+for (i in 1: n.sims) {
+  mean.matrix.all.varibles[i,] <- c(mean(John[i,]),mean(marry[i,]),mean(peter[i,]),mean(bob[i,]))
+}
+```
+
+This creates a sample varience vector of the 10000 samples for John, Marry, Petter, and Bob.
+```{r}
+var.matrix.all.varibles <- matrix(NA, nrow = n.sims , ncol = 4)
+
+for (i in 1: n.sims) {
+  var.matrix.all.varibles[i,] <- c(var(John[i,]),var(marry[i,]),var(peter[i,]),var(bob[i,]))
+}
+```
+
+
+This creates a sample mode vector of the 10000 samples for John, Marry, Petter, and Bob.
+```{r}
+getmode <- function(sam) {
+  uniq <- unique(sam)
+  uniq[which.max(tabulate(match(sam,uniq)))]
+}
+
+
+mode.matrix.all.varibles <- matrix(NA, nrow = n.sims, ncol = 4)
+
+for (i in 1: n.sims) {
+  mode.matrix.all.varibles[i,] <- c(getmode(John[i,]),getmode(marry[i,]),getmode(peter[i,]),getmode(bob[i,]))
+}
+```
+
+This creates a sample median vector of the 10000 samples for John, Marry, Petter, and Bob.
+```{r}
+median.matrix.all.varibles <- matrix(NA, nrow = n.sims, ncol = 4)
+
+for (i in 1: n.sims) {
+  median.matrix.all.varibles[i,] <- c(median(John[i,]),median(marry[i,]),median(peter[i,]),median(bob[i,]))
+}
+```
+
+```{r}
+max.matrix.all.varibles <- matrix(NA, nrow = n.sims, ncol = 4)
+
+for (i in 1: n.sims) {
+  max.matrix.all.varibles[i,] <- c(max(John[i,]), max(marry[i,]), max(peter[i,]), max(bob[i,]))
+}
+```
+
+```{r}
+min.matrix.all.varibles <- matrix(NA, nrow = n.sims, ncol = 4)
+
+for (i in 1: n.sims) {
+  min.matrix.all.varibles[i,] <- c(min(John[i,]), min(marry[i,]), min(peter[i,]), min(bob[i,]))
+}
+```
+
+
+
+
+I ploted the results using plotly.
+
+Histograms of the sample min. values of the 10000 samples for John, Marry, Peter, and Bob.
+```{r}
+fig <- plot_ly( x = min.matrix.all.varibles[,1] ,type = 'histogram', alpha = 0.7, name = 'John' ) %>%
+layout(title='histograms of the min. values of the 10000 samples for John, Marry, Peter, and Bob', barmode ='overlay') %>%
+add_trace(x= min.matrix.all.varibles[,2], name ='Marry ') %>%
+add_trace(x= min.matrix.all.varibles[,3], name ='Peter') %>%
+add_trace(x= min.matrix.all.varibles[,4], name ='Bob ')
+fig
+
+```
+
+Histograms of the sample max. values of the 10000 samples for John, Marry, Peter, and Bob.
+```{r}
+plot_ly( x = max.matrix.all.varibles[,1] ,type = 'histogram', alpha = 0.7, name = 'John' ) %>%
+layout(title='histograms of the max. values of the 10000 samples for John, Marry, Peter, and Bob', barmode ='overlay') %>%
+add_trace(x= max.matrix.all.varibles[,2], name ='Marry ') %>%
+add_trace(x= max.matrix.all.varibles[,3], name ='Peter') %>%
+add_trace(x= max.matrix.all.varibles[,4], name ='Bob ')
+
+```
+
+
+
+
+Histograms of the sample means of the 10000 samples for John, Marry, Peter, and Bob.
+```{r}
+plot_ly( x = mean.matrix.all.varibles[,1] ,type = 'histogram', alpha = 0.7, name = 'John' ) %>%
+layout(title='histograms of the means of the 10000 samples for John, Marry, Peter, and Bob', barmode ='overlay') %>%
+add_trace(x= mean.matrix.all.varibles[,2], name ='Marry ') %>%
+add_trace(x= mean.matrix.all.varibles[,3], name ='Peter') %>%
+add_trace(x= mean.matrix.all.varibles[,4], name ='Bob ')
+
+```
+
+Histograms of the sample medians of the 10000 samples for John, Marry, Peter, and Bob.
+```{r}
+plot_ly( x = median.matrix.all.varibles[,1] ,type = 'histogram', alpha = 0.7, name = 'john' ) %>%
+layout(title='Histograms of the medians of the 10000 samples for John, Marry, Peter, and Bob', barmode ='overlay') %>%
+add_trace(x= median.matrix.all.varibles[,2], name ='marry ') %>%
+add_trace(x= median.matrix.all.varibles[,3], name ='peter') %>%
+add_trace(x= median.matrix.all.varibles[,4], name ='bob ')
+
+```
+
+Histograms of the sample mode of the 10000 samples for John, Marry, Peter, and Bob.
+```{r}
+plot_ly( x = mode.matrix.all.varibles[,1] ,type = 'histogram', alpha = 0.5, name = 'john' ) %>%
+layout(title='Histograms of the sample mode of hte 10000 samples for John, Marry, Peter, and Bob.', barmode='overlay', margin='carpet') %>%
+add_trace(x= mode.matrix.all.varibles[,2], name ='marry ') %>%
+add_trace(x= mode.matrix.all.varibles[,3], name ='peter') %>%
+add_trace(x= mode.matrix.all.varibles[,4], name ='bob ')
+
+```
+
+
+Histograms of the medians of the 10000 samples for John, Marry, Peter, and Bob.
+```{r}
+plot_ly( x = var.matrix.all.varibles[,1] ,type = 'histogram', alpha = 0.5, name = 'john' ) %>%
+layout(title='Histograms of the medians of the 10000 samples for John, Marry, Peter, and Bob.', barmode='overlay', margin='carpet') %>%
+add_trace(x= var.matrix.all.varibles[,2], name ='marry ') %>%
+add_trace(x= var.matrix.all.varibles[,3], name ='peter') %>%
+add_trace(x= var.matrix.all.varibles[,4], name ='bob ')
+
+```
+
+
+# 3.) Redoing the presentation without and then with rstan! 
+
+We want to model the time that U.S students, in a specific university, sleep during a day. Thus, we use a binomial distribution to model the pr 3)oportion of sleep a student sleeps in a day. We only have the observations though, and not the parameters (the proportion a student sleeps in a day) of the binomial distribution. Thus we use bayesian techniques to model this proportion using a beta distribution because it is a conjugate prior to the binomial distribution. Then, we simulate values for the expected amount of time that a student sleeps. This approach takes into account our prior knowledge (that's vague) and updates it with the new information we observed(the observations).
+
+$$ f(x) = n\pi$$
+
+The likelihood
+
+$$  l( \pi) \propto \pi^{\sum x_i} (1- \pi)^{Ni - \sum x_i} $$
+
+The prior 
+$$  f( \pi) \propto \pi^{a-1} (1- \pi)^{b-1} $$
+
+The posterior
+$$  p( \pi|x) \propto \pi^{\sum x_i +a-1} (1- \pi)^{b+ \sum (n- x_i) } $$
+
+
+We load the data and visualise it with a histogram
+
+```{r}
+df <-na.omit(read.csv('SleepStudyData.csv'))
+plot_ly(x=df$Hours, type = 'histogram')
+```
+
+
+We create a posterior distribution for $\pi$, the proportion that student's sleep in a day.
+```{r}
+
+sumx <- sum(df$Hours)
+n <- 24
+lengthX <- length(df$Hours)
+N <- n*lengthX
+
+vague.a <- 1
+vague.b <- 1
+
+a <- sumx + vague.a
+b <- vague.b + N-sumx
+
+x<- seq(0.1,1,0.0001)
+y <- dbeta(x, a, b)
+plot_ly(x=x,y=y, type = 'scatter', mode='markers')
+
+
+```
+
+
+We sample values for pi from the above posterior distribution and then visualise the simulations by a histogram.
+```{r}
+predict.pi <- rbeta(1000, a, b)
+plot_ly(x=predict.pi, type = 'histogram')
+```
+
+
+
+
+
+
+
+We simulate values for the expected time a student sleeps. (a full explanation of the process can be found in the notes section)
+```{r}
+sims.sleep <- rbinom(1000, 24, predict.pi)
+plot_ly(x=sims.sleep, type='histogram')
+```
+
+
+
+
+
+
+
+
+Now we will use the same model but instead implement it in rstan. Rstan is a *state of the art* library for bayesian inference. It has an easy syntax for creating bayesian models. It creates a graph of our Bayesian model and then complies it in c++ code in a very performant manner.  
+
+We specify the data and its' length. 
+```{r}
+n <- length(df$Hours)
+y <- df$Hours
+```
+
+
+We use the stan notation to create our model.
+```{stan output.var='STAN'}
+
+data{
+  int<lower=0> n;
+  int<lower=0, upper=24> y[n];
+}
+parameters{
+ real<lower=0, upper=1 > pi;
+}
+model{
+  pi ~ beta(1,1);
+  y ~ binomial(24, pi); //more // prior
+}
+
+```
+
+We connect r and rstan through the rstan output variable STAN 
+```{r}
+stan.data <- list(y=y, n=n) #stan varible = r varible
+myfit <- sampling(STAN, stan.data, c('pi'))
+```
+
+We make traceplot for pi  
+```{r}
+traceplot(myfit)
+```
+
+
+
+We make summaries for the different chains
+```{r}
+summary(myfit)
+```
+
+
+
+```{r}
+simulations <- extract(myfit)
+```
+
+
+We plot rstan simulated values for pi
+```{r}
+pi <- simulations$pi
+plot_ly(x=pi, type='histogram')
+```
+
+
+We plot using the simulated values pi what we expect the number of hours a student sleeps to be. (more about this can be found in my notes)
+```{r}
+sims.rstan.sleep <- rbinom(1000,24,pi)
+plot_ly(x=sims.rstan.sleep, type='histogram')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 4) The secretary problems
+
+### question 1
+In considering a firm with 2 secretaries, we are given that one secretary works twice as long as the other. Thus we know the probability of it being the first secretary is 1/3 and the second 2/3. We are also given what their expected rate of answering calls is; for the first secretary it is 10, and the second is 6 in 1 hour. This means that we can model the probability of a realization (the number of calls) occurring given this rate, as a Poisson distribution, i.e $p(X = x | \lambda)$. And  x ~ pos($\lambda$). We observe that 4 calls occur. So we can use this Poisson model to find the probability of this realisation occurring given the knowledge of the first secretary and second secretaries expected rate of answering calls. We can use the law of total probability to calculate the probability of the 4 calls occurring, by the sum of the probability of it being the first and 4 calls occurring and the probability of it being the second secretary and 4 calls occurring. Then the probability of it being the first secretary and 4 calls occurring divided by the total probability of 4 calls occurring is the proportion that it was the first secretary given that 4 calls occurred. 
+
+
+```{r}
+
+given.calls <- 4
+
+expected.calls.sec.1 <-10
+expected.calls.sec.2 <-6
+
+p.four.given.sec.1 <- dpois(given.calls, expected.calls.sec.1 )
+p.four.given.sec.2 <- dpois(given.calls, expected.calls.sec.2 )
+
+p.sec.1 <- 1/3
+p.sec.2 <- 2/3
+
+p.sec.1.give.four <- (p.sec.1*p.four.given.sec.1)/( (p.sec.1*p.four.given.sec.1)+ (p.sec.2 *p.four.given.sec.2))
+p.sec.1.give.four
+```
+
+### question 2
+Similar to question 1, we use the same logic the probability that it was secretary 1, secretary 2, secretary 3, secretary 4 given 9 calls occurred. We just have to analytically find out prior probabilities for each secretary by reading the question carefully. 
+
+```{r}
+
+
+given.calls <- 9
+
+sec.var <- 1/(3+(2*1.2*3)) # used some algebra to analtically determine this 
+
+p.sec.1 <- 1*(sec.var)
+p.sec.2 <- 2*(sec.var)
+p.sec.3 <- 1.2*(3*sec.var)
+p.sec.4 <- 1.2*(3*sec.var)
+
+# p.sec.1 +p.sec.2 +p.sec.3 +p.sec.4 does add up to 1 
+print(p.sec.1 +p.sec.2 +p.sec.3 +p.sec.4 )
+
+expected.calls.sec.1 <-10
+expected.calls.sec.2 <-6
+expected.calls.sec.3 <-4
+expected.calls.sec.4 <-5
+
+p.nine.given.sec.1 <- dpois(given.calls, expected.calls.sec.1)
+p.nine.given.sec.2 <- dpois(given.calls, expected.calls.sec.2)
+p.nine.given.sec.3 <- dpois(given.calls, expected.calls.sec.3)
+p.nine.given.sec.4 <- dpois(given.calls, expected.calls.sec.4)
+
+p.sec1.and.given.calls <- p.sec.1 * p.nine.given.sec.1
+p.sec2.and.given.calls <- p.sec.2 * p.nine.given.sec.2
+p.sec3.and.given.calls <- p.sec.3 * p.nine.given.sec.3
+p.sec4.and.given.calls <- p.sec.4 * p.nine.given.sec.4
+
+TP <- p.sec1.and.given.calls + p.sec2.and.given.calls  + p.sec3.and.given.calls +p.sec4.and.given.calls 
+
+p.sec1.given.nine <- p.sec1.and.given.calls / TP
+p.sec2.given.nine <- p.sec2.and.given.calls / TP
+p.sec3.given.nine <- p.sec3.and.given.calls / TP
+p.sec4.given.nine <- p.sec4.and.given.calls / TP
+
+p.sec1.given.nine 
+p.sec2.given.nine 
+p.sec3.given.nine 
+p.sec4.given.nine 
+```
+
+### question 3
+
+This question is similar to the above questions with a twist. First, we have to find the weighted average for the expected number of calls from each secretary given 4 calls occurred. We can use the same logic from questions 1 and 2 to find the weights, the probability that it was a specific secretary given 4 calls occurred. Once we have the weighted average we can use this as the expected calls, i.e $\lambda$ in a Poisson distribution and randomly simulate values to get predictive density for the expected number of calls. 
+
+```{r}
+given.calls <- 4
+
+sec.var <- 1/(3+(2*1.2*3)) # used some algebra to analtically determine this 
+
+p.sec.1 <- 1*(sec.var)
+p.sec.2 <- 2*(sec.var)
+p.sec.3 <- 1.2*(3*sec.var)
+p.sec.4 <- 1.2*(3*sec.var)
+
+# p.sec.1 +p.sec.2 +p.sec.3 +p.sec.4 does add up to 1 
+print(p.sec.1 +p.sec.2 +p.sec.3 +p.sec.4 )
+
+expected.calls.sec.1 <-10
+expected.calls.sec.2 <-6
+expected.calls.sec.3 <-4
+expected.calls.sec.4 <-5
+
+p.four.given.sec.1 <- dpois(given.calls, expected.calls.sec.1)
+p.four.given.sec.2 <- dpois(given.calls, expected.calls.sec.2)
+p.four.given.sec.3 <- dpois(given.calls, expected.calls.sec.3)
+p.four.given.sec.4 <- dpois(given.calls, expected.calls.sec.4)
+
+p.sec1.and.given.four.calls <- p.sec.1 * p.four.given.sec.1
+p.sec2.and.given.four.calls <- p.sec.2 * p.four.given.sec.2
+p.sec3.and.given.four.calls <- p.sec.3 * p.four.given.sec.3
+p.sec4.and.given.four.calls <- p.sec.4 * p.four.given.sec.4
+
+TP <- p.sec1.and.given.calls + p.sec2.and.given.calls  + p.sec3.and.given.calls +p.sec4.and.given.calls 
+
+p.sec1.given.four <- p.sec1.and.given.four.calls / TP
+p.sec2.given.four <- p.sec2.and.given.four.calls / TP
+p.sec3.given.four <- p.sec3.and.given.four.calls / TP
+p.sec4.given.four <- p.sec4.and.given.four.calls / TP
+
+p.sec1.given.four 
+p.sec2.given.four 
+p.sec3.given.four 
+p.sec4.given.four 
+
+```
+
+
+```{r}
+sims.call <- rpois(10000, expected.calls.sec.1*p.sec1.given.four + expected.calls.sec.2*p.sec2.given.four + expected.calls.sec.3*p.sec3.given.four + expected.calls.sec.4*p.sec4.given.four)
+plot_ly(x = sims.call  , type = 'histogram', alpha = 0.7)  %>%
+layout(title = "Histogram of expected calls", xaxis =list(title = 'calls'))
+```
+
+
+
+
+
+
+
+# 5) Exercise 8
+
+In this question, we consider a log posterior of the $X^{2}_m$ distribution with prior Exp(0.05) given some observations.
+## question 1
+
+ the prior 
+$$p(k) \propto e^{- 0.05 k } $$
+
+ the likelihood
+
+$$ l(k) \propto (\frac{1}{2^\frac{k}{2} gamma(\frac{k}{2})})^{n}(\prod x_i^{\frac{k}{2}-1})  e^{- \sum \frac{x_i}{2}}  $$
+
+ the posterior
+$$ p(k|x) \propto (\frac{1}{2^\frac{k}{2} gamma(\frac{k}{2})})^{n} (\prod x_i^{\frac{k}{2}-1})  e^{- \sum \frac{x_i}{2} - 0.05k} $$
+
+ the log posterior
+$$ p(k|x) \propto - n *log(2^{k/2}gamma(k/2))  + (\frac{k}{2}-1)(\sum log(x_i)) + \frac{1}{2} \sum x_i - 0.05k $$
+
+
+In my notation, from Wikipedia, I denote the degrees of freedom by k.
+I create a posterior function based on the above maths. 
+```{r}
+posterior.chi <- function(sam,k){
+  n <- length(sam)
+  return(   -(n*log(2^(k/2)*gamma(k/2))) + ((k/2)-1)*sum(log(sam)) + (0.5*sum(sam) ) - (0.05*k))
+}
+
+```
+
+
+I load the observations into r and plot the observations to make more sense of the data.
+```{r}
+observations <- c( 10, 14, 19, 12, 15, 11, 9, 22, 12, 22, 16, 12, 12, 22, 15, 8, 15, 8, 19, 23)
+plot_ly(x=observations, type = 'histogram')
+```
+
+
+I plot the log posterior for the k possibilities and then I plot the posterior divided by the maximin value (note that below I work with logs). To read more about this see my notes section.
+```{r}
+k.possiblities <- seq(1, 30, 0.01)
+k.prob.possiblities <- posterior.chi(observations, k.possiblities)
+plot_ly(x=k.possiblities,y= k.prob.possiblities, type='scatter', mode='markers')
+plot_ly(x=k.possiblities,y=exp(k.prob.possiblities - max(k.prob.possiblities)), type='scatter' , mode ='markers')
+
+```
+
+
+
+# Question 2
+I create 1000 simulations for 3 observations, respectively, and display them visually.
+```{r}
+observation1 <- sample(k.possiblities, 10000, TRUE, exp(k.prob.possiblities) )
+observation2 <- sample(k.possiblities, 10000, TRUE, exp(k.prob.possiblities) )
+observation3 <- sample(k.possiblities, 10000, TRUE, exp(k.prob.possiblities) )
+
+plot_ly(x=observation1, type = 'histogram')
+```
+
+Here, I make a 3d histogram and use plotly's interactive 3dmesh plot to smoothen the edges of the plot. I split the data into cells and count how many observations are in each cell. This is to illustrate the joint distribution of simulations for observations 1 and 2  
+```{r}
+#cells 
+n <- 20
+
+cell.obs1 <- seq(10,20, length.out = n)
+cell.obs2 <- seq(10,20, length.out = n )
+
+mat <- matrix(NA, nrow = 400, ncol = 3)
+
+i =0
+for (ob1 in cell.obs1 -1) {
+  for (ob2 in cell.obs2 -1){
+    i = i+1
+    count = sum( (ob1 < observation1) & (observation1  < ob1 +1) & (ob2 < observation2) & (observation2 < ob2 +1  )) 
+    mat[i,] <- c(ob1, ob2, count)
+  }
+}
+
+```
+
+
+I plot the 3d mesh plot. 
+```{r}
+plot_ly(x=mat[,1], y=mat[,2], z= mat[,3], type='mesh3d') %>%
+layout(title = 'Mesh of simulations for observations 1 and 2')
+```
+
+
+Alternatively to the above, I plot the observations against each other. In some ways, it's a flattened version of the above. 
+```{r}
+plot_ly(x=observation1, y=observation2, type='scatter',  mode='markers')
+
+```
+
+I create a 3d plot of the simulations for the 3 observations against each other.
+```{r}
+plot_ly(x =observation1, y=observation2, z=observation3, type='scatter3d')
+```
+
+
+  
+
+
+
+
+
+
+
+
+
+
+## question 3
+
+
+
+The distribution for the data
+$$f(x| \pi) \propto \pi^{x}(1-\pi)^{n-x}$$
+
+The likelihood
+$$l(\pi) \propto \pi^{ \sum x_i}(1-\pi)^{\sum n-x_i}$$
+
+The prior 
+
+$$ p(\pi) \propto  \pi^{a-1}(1-\pi)^{b-1} $$
+
+The posterior
+$$ p(\pi | x) \propto  \pi^{a+\sum x_i-1}(1-\pi)^{b+\sum (n-x_i)-1} $$
+
+It is given that a=2 and b =5 for beta prior to convections. We observe 8 dismisses out of 12 cases on a single day.
+Thus the parameters for the posterior are 4 out of 12 cases.
+
+The posterior
+$$ p(\pi | x) \propto  \pi^{6+1}(1-\pi)^{13-1}$$
+$pi | x$ distributed Beta(10,9)
+
+I plot the posterior distrbution.
+```{r}
+x <- seq(0,1, 0.01)
+y <- dbeta(x, 6, 13)
+plot_ly(x=x, y=y, type = 'scatter', mode='markers') %>% layout(title ='posterior density of pi')
+```
+
+I sample values for $\pi$, the probablity of being convicted, from the posterior distribution.
+```{r}
+sims.pi <- rbeta(10000, 6, 13)
+plot_ly(x=sims.pi, type = 'histogram') %>% layout(title = 'histogram of simulated pi' )
+
+```
+
+I simulate the expected amount of convictions out 10 cases. 
+```{r}
+sims.convicts <- rbinom(1000, 10, sims.pi)
+plot_ly(x= sims.convicts, type='histogram') %>%
+layout(title = 'histogram of simulated convictes of the juje out of 10' )
+
+```
+
+I create a function that calculates the amount of convection below some x value. I plot this.  
+```{r}
+convicts <- 0:10
+cm.prob.dissmis <- lapply(convicts, function(x){ mean(sims.convicts   < x) })
+
+plot_ly(x= convicts, y= cm.prob.dissmis, type='scatter', mode='markers+lines') %>%
+layout(title = 'emperical cdf' )
+```
+
+In the problem, we want to find the probability of more than 8 cases dismissed out of 10. Currently, though, we have the probability of more than x cases convicted out of 10. Thus we flip the greater than or equal to sign to a less than sign to determine the probability of dismisses above 8 out 10 cases. 
+
+
+
+# Exercise 4
+
+
+## question 2 
+
+The next problem is about the number of cars driving down a large highway in a particular 10 minute
+period. This is count data. Thus, we use a Poisson distribution to model the data, and a gamma conjugate prior to model $\lambda$ the expected number of cars driving down the highway, thus the posterior is gamma distributed too. I use the method of moments to find out what a and b are for the gamma prior, given prior knowledge is said the mean number of cars driving down a highway is a 100 and the standard deviation is 30.
+
+THe density
+$$  f(x|\lambda) = \frac{\lambda^{x} e^{-\lambda}}{x!}$$
+The likelihood
+$$ l(\lambda) \propto \lambda^{\sum x} e^{-n \lambda}$$
+The prior is 
+$$ f(\lambda) = \frac{b^a}{r(a)} \lambda^{a-1} e^{-b\lambda}$$
+$$ p(\lambda)  \propto  \lambda^{a-1} e^{-b\lambda}$$
+The posterior is
+$$ p( \lambda | x)  \propto \lambda^{a + \sum x} e^{-(n+b)\lambda}  $$
+
+I plot the posterior distribution
+```{r}
+x <- seq(0,150,1)
+
+posterior.cars <- dgamma(x, shape = 900 + (100^2/30^2),  rate =10+(100/30^2)  )
+plot_ly(x=x, y=posterior.cars, type = 'scatter', mode='markers+lines')
+```
+
+
+I simulate values for $\lambda$, the expected number of cars driving down a highway
+```{r}
+sims <- sample(x, 1000, T, posterior.cars)
+plot_ly(x=sims, type = 'histogram')
+
+
+```
+
+
+
+## question 3
+
+Now we are given the prior knowledge that we are 90% sure the mean is over 50. Since it would take a long time (at least for me) to calculate that, and I also didn't want to use gradient descent, I used trial and error. First I noted the problem as
+
+$$0.9 = P( \lambda \geq  50) = 1-P( \lambda \leq 50) $$
+I rewrite the above, and them make it the abolute value so that this value can't be less than zero. 
+$$ | 0.9-(1-P( \lambda \leq 50) |$$
+
+I then say that we need to get this a minimin for possible a and b values. So I make a 3d scatter plot for possible a and b values. And determine the optimal a and b values for the gamma distribution that intersects 0. Where the blue hyperplane and the yellow hyperplane intersects are these optimal a and b values.
+```{r}
+
+
+n <- 200
+
+
+cell.obs1 <- seq(1,55, length.out = n)
+cell.obs2 <- seq(1, 6, length.out = n )
+
+mat <- matrix(NA, nrow = n^2, ncol = 3)
+
+i =0
+for (ob1 in cell.obs1 -1) {
+  for (ob2 in cell.obs2 -1){
+    i = i+1
+    neg.loss <- abs(0.9-(1- pgamma(50, shape=ob1, rate=ob2 )))
+    mat[i,] <- c(ob1, ob2, neg.loss)
+  }
+}
+
+
+
+
+plot_ly(x=mat[,1], y=mat[,2], z=mat[,3],  type='scatter3d', mode='markers') %>%
+add_trace(z=0, alpha = 0.5, mode = 'lines')  
+  
+```
+
+
+I make a cumulative density plot with the chosen a and b values to check that 90% of $\lambda$ is over 50. And, it is true. 
+```{r}
+x <- seq(0, 100)
+y <- 1- pgamma(x, shape = 52.91457, rate = 0.879)
+plot_ly(x=x, y=y, type = 'scatter', mode='markers+lines' ) %>%
+layout(title = 'visuallly see that 90% mean is over 50 ')
+1- pgamma(50, shape = 52.91457, rate = 0.8793)
+```
+
+
+
+I make a plot of the posterior distribution. I, also, make another cumulative density to test the probablity that $\lambda$ values are over 60. 
+```{r}
+a <- 52.91457 #from 3d plot 
+b <-  0.879  #from 3d plot 
+x <- seq(59,100,1)
+posterior.cars <- dgamma(x, shape = 900 + a,  rate =10 + b )
+plot_ly(x=x, y=posterior.cars, type = 'scatter', mode='markers+lines')
+
+cum.posterior.cars <- pgamma(x, shape = 900 + a,  rate =10 + b )
+plot_ly(x=x, y=1-cum.posterior.cars, type = 'scatter', mode='markers+lines')
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 7) multinomial example with simulated data 
+
+Assuming independence
+$$p(A \ and \ B) = p(A)p(B)$$
+
+$$p(A \ and \ B |X) = p(A | X)p(B |X) $$
+where 
+
+$$p(A | X) \propto l(A)p(A) $$
+and simmarly for B,
+$$p(B | X) \propto l(B)p(B) $$
+
+We are doing this instead of 
+
+$$p(A \ and \ B |X) \propto l(A  \ and \ B)p(A \ and \ B ) $$
+
+I will try this with multinomial on simulated data 
+
+if we have 
+
+$$ f(x_1, x_2, x_3, x_4|\pi_1,\pi_3,\pi_3,\pi_4) = \frac{n!}{x_1!x_2!x_3!x_4!}\pi_1^{x_1} \pi_2^{x_2} \pi_3^{x_3} \pi_4^{x_4} $$
+
+and we want the posterior
+$$p(\pi_1,\pi_2,\pi_3,\pi_4|x) \propto p(\pi_1| x)p(\pi_2| x)p(\pi_3| x) p(\pi_4| x)  $$
+
+,then for 
+$$p( \pi_1 | x) \propto l(\pi_1,\pi_2, \pi_3, \pi_4)p(\pi_1).$$
+
+
+Where the liklihood can now be model by the binomail distribution, the prior by the beta distribution, and thus, the posterior by the beta distribution.
+$$p( \pi_i | x) \propto l(\pi_i)p(\pi_i) $$ 
+
+The density of the data is binomial. 
+$$f(x| \pi_i) \propto  \pi_i^{x}(1-\pi_i)^{n-x} $$
+
+The likihood of the paramters is
+$$l(\pi_i) \propto  \pi_i^{\sum x_i}(1-\pi_i)^{\sum (n-x_i)}$$
+
+The prior is
+$$p(\pi_i) \propto \pi_i^{a-1}(1-\pi_i)^{b-1}$$
+
+The posterior is 
+$$p(\pi_i|x) \propto \pi_i^{a+\sum x_i-1}(1-\pi_i)^{b+\sum (n-x_i)-1} $$
+
+Note all of the above results are confirmed by simulated data where I knew what the $\pi_i's$ where. Hence, I could test that my results where consistent with this.
+
+
+
+Tressure hunt example. 
+The example below uses simulated data of the tressure found by James, John, and Peter (out of the total amount of tressure 10), given the probability that they will find the tressure which, respectively, was 0.3,0.2 and 0.5.
+```{r}
+trials <- 10
+n.sims <-1000
+N <- trials*n.sims 
+
+a <- 1
+b <- 1 
+
+
+obser <- t(rmultinom(n.sims, trials, c(0.3,0.2,0.5)))
+
+c1 <- sum(obser[,1]) # james
+c2 <- sum(obser[,2]) # john
+c3 <- sum(obser[,3]) # peter
+
+
+
+possible.pi.1 <- seq(0,1,0.001)
+posterior.pi.1 <- dbeta(possible.pi.1, a + c1 , b + N - c1 )
+
+possible.pi.2 <- seq(0,1,0.001)
+posterior.pi.2 <- dbeta(possible.pi.2, a + c2 , b + N - c2 )
+
+possible.pi.3 <- seq(0,1,0.001)
+posterior.pi.3 <- dbeta(possible.pi.3, a + c3 , b + N - c3 )
+
+
+#I plot the posterior for James, John and Peter.
+plot_ly(x = possible.pi.1  , y = posterior.pi.1/max(posterior.pi.1),  type = 'scatter', mode ='lines+markers', name='james')  %>% layout(title = "Posterior for the pi's of James, John and Peter", xaxis =list(title = 'pi')) %>%  
+add_trace(y =posterior.pi.2/max(posterior.pi.2) , name = 'John', mode = 'lines+markers') %>%
+add_trace(y =posterior.pi.3/max(posterior.pi.3) , name = 'peter', mode = 'lines+markers')
+
+
+
+
+```
+
+
+
+
+
+I plot the simulations. 
+```{r}
+
+predictive.sample.1 <- sample(possible.pi.1, 1000, TRUE, posterior.pi.1)
+predictive.sample.2 <- sample(possible.pi.2, 1000, TRUE, posterior.pi.2)
+predictive.sample.3 <- sample(possible.pi.3, 1000, TRUE, posterior.pi.3)
+
+
+sims.1 <- rbinom(10000, trials, predictive.sample.1)
+sims.2 <- rbinom(10000, trials, predictive.sample.2)
+sims.3 <- rbinom(10000, trials, predictive.sample.3)
+
+
+plot_ly(x =sims.1 , type = 'histogram', alpha = 0.5, name = 'James')  %>%
+layout(title = "Histogram of simulated amount of tressure found by James, John and Peter", margin = 'carpet', xaxis =list(title = 'Tressure'), barmode = "overlay") %>%
+add_trace(x = sims.2, name = 'John') %>%
+add_trace(x = sims.3 , name = 'peter')
+
+
+
+plot_ly(x = sims.1 - sims.2 , type = 'histogram')  %>%
+layout(title = "Histogram to deside if james better than john", xaxis =list(title = 'diffrences of successes'), barmode = "overlay")
+
+
+plot_ly(x = sims.1 - sims.3 , type = 'histogram')  %>%
+layout(title = "Histogram to deside if james better than peter", xaxis =list(title = 'diffrences of successes'))
+
+plot_ly(x = sims.3 - sims.2, type = 'histogram')  %>%
+layout(title = "Histogram to deside if peter better than john", xaxis =list(title = 'diffrences of successes'))
+
+
+
+
+```
+
+From the histograms above, we are more sure that peter will find the most Treasure, then James, then John. We are more sure that Peter will find more treasure than John but less sure that Peter will find more treasure than James and that James will find more treasure  than John.  
+
+
+
+# 8) The crono virus example
+
+The vague priors 
+
+a = 0.5
+b = 0.5 
+
+
+The number of people in bloemfonetien 556 000 (from google AI system)
+
+The corono virus:
+[link](https://www.worldometers.info/coronavirus/) - numbers which are constantly updating.  
+98 436 cases
+3 387 deaths
+
+From [link](https://www.contagionlive.com/news/cdc-reports-13-million-flu-cases-thus-far-in-201920-season)
+
+16.5 million medical vists 
+490600 hospitializations (serious cases of the common flu)
+34200 deaths 
+
+I will only consider serious cases of the common flu
+
+
+
+The density of the data is binomial. 
+$$f(x| \pi) \propto  \pi^{x}(1-\pi)^{n-x} $$
+The likihood of the paramters is
+$$l(\pi) \propto  \pi^{\sum x_i}(1-\pi)^{\sum (n-x_i)} $$
+The prior is
+$$p(\pi) \propto \pi^{a-1}(1-\pi)^{b-1} $$
+
+The posterior is 
+$$p(\pi|x) \propto \pi^{a+\sum x_i-1}(1-\pi)^{b+\sum (n-x_i)-1} $$
+
+
+
+
+The posterior for the crono virus and the flu
+```{r}
+a <- 0.5
+b <- 0.5
+
+x <- seq(0.02,0.08,0.0001)
+y.crono <- dbeta(x, 3387 + a, b+ (98436-3387))/max(dbeta(x, 3387 + a, b+ (98436-3387)))
+y.flu <-  dbeta(x, 34000+ a, b+ (490600 -34200))/max( dbeta(x, 34000+ a, b+ (490600 -34200)))
+plot_ly(x=x, y=y.crono, type = 'scatter', mode='markers+lines', name='crono') %>%
+layout(title = 'The posterior for pi for corno virus and  flu', xaxis =list(title='pi, probablity of death ')) %>%
+add_trace(y= y.flu, name = 'flu')
+```
+
+
+
+
+Simulations for pi for the crono virus and the flu.
+```{r}
+sims.pi.crono <- rbeta(1000, 3387 + a, b+ (98436-3387))
+sims.pi.flu <- rbeta(1000,34000+ a, b+ (490600 -34200))
+plot_ly(x=sims.pi.crono, type='histogram', name='crono virus') %>%
+layout(title='The sims of pi',  barmode='overlay') %>%
+add_trace(x = sims.pi.flu , name='flu virus')
+```
+
+
+
+IF EVERYONE IN BLOEM. was infected with the crono virus and if everyone was infected with flu, how many people would die?
+
+```{r}
+n.people.bloemfonetien <- 556000
+
+sims.death.crono <- rbinom(10000, n.people.bloemfonetien, sims.pi.crono  )
+sims.death.flu <- rbinom(10000, n.people.bloemfonetien, sims.pi.flu  )
+
+plot_ly(x=sims.death.crono , type='histogram') %>%
+layout(title='The expected number of deaths', barmode='overlay') %>%
+add_trace(x=sims.death.flu)
+
+
+```
+
+
+
+
+IF 10% OF THE PEOPLE IN BLOEM. was infected with the crono virus and if everyone was infected with flu, how many people would die?
+
+```{r}
+n.people.bloemfonetien <- 556000*0.1
+
+sims.death.crono <- rbinom(10000, n.people.bloemfonetien, sims.pi.crono  )
+sims.death.flu <- rbinom(10000, n.people.bloemfonetien, sims.pi.flu  )
+
+plot_ly(x=sims.death.crono , type='histogram') %>%
+layout(title='The expected number of deaths', barmode='overlay') %>%
+add_trace(x=sims.death.flu)
+
+
+```
+
+
+
+IF 1% OF THE PEOPLE IN BLOEM. was infected with the crono virus and if everyone was infected with flu, how many people would die?
+
+```{r}
+n.people.bloemfonetien <- 556000*0.01
+
+sims.death.crono <- rbinom(10000, n.people.bloemfonetien, sims.pi.crono  )
+sims.death.flu <- rbinom(10000, n.people.bloemfonetien, sims.pi.flu  )
+
+plot_ly(x=sims.death.crono , type='histogram') %>%
+layout(title='The expected number of deaths', barmode='overlay') %>%
+add_trace(x=sims.death.flu)
+
+
+```
+
+IF 0.1% OF THE PEOPLE IN BLOEM. was infected with the crono virus and if everyone was infected with flu, how many people would die?
+```{r}
+n.people.bloemfonetien <- 556000*0.001
+
+sims.death.crono <- rbinom(10000, n.people.bloemfonetien, sims.pi.crono  )
+sims.death.flu <- rbinom(10000, n.people.bloemfonetien, sims.pi.flu  )
+
+plot_ly(x=sims.death.crono , type='histogram') %>%
+layout(title='The expected number of deaths', barmode='overlay') %>%
+add_trace(x=sims.death.flu)
+
+
+```
+
+I plot the diffrence of the death of flu vs the Crono virus, by Histogram then CDF.
+```{r}
+n.people.bloemfonetien <- 556000*0.001
+
+sims.death.crono <- rbinom(10000, n.people.bloemfonetien, sims.pi.crono  )
+sims.death.flu <- rbinom(10000, n.people.bloemfonetien, sims.pi.flu  )
+
+difrence.viruses  <- sims.death.flu -sims.death.crono
+
+plot_ly(x= difrence.viruses , type='histogram') %>%
+layout(title='The diffrecnce in death of flu vs the Crono virus') 
+
+x <- seq(-20,50, 1)
+cm.prob.difrence.viruses <- lapply(x, function(x){ mean(difrence.viruses < x) })
+
+
+plot_ly(x= x, y= cm.prob.difrence.viruses, type='scatter', mode='markers+lines') %>%
+layout(title='prop x more people die from flu than crono if 0.1 bloem is infected  flue and 0.1 crono', margin='carpet') 
+
+```
+
+
+
+
+
+# 9) My notes 
+
+## simulation 
+
+$$F(x) = p(X<x)$$
+
+$$x = F^{-1}(p(X<x))$$
+which can be rewritten as 
+$$ Q(p) = F^{-1}(p)$$
+
+
+An aside
+The computer cannot simulate uniform random numbers. So we fake it by using a complex algorithm. 
+Once we have a uniform random number generator, we can simulate uniformly random p(X < x) values. 
+We can plug these values, p(X < x) into Q(p) to get x values and create a sample, of size n, distributed by f(x).
+
+```{r}
+#quatile function
+expo.quant <- function(p, lambda) {
+  (log(1-p)/-lambda)
+}
+```
+
+
+
+
+```{r}
+lambda <- 1
+n <- 1000
+p <- runif(n)
+expo.sims <- expo.quant(p,lambda)
+plot_ly(x = expo.sims, type = 'histogram')  %>% layout(title = 'My exponetial sampler', xaxis =list(title = 'observations'))
+plot_ly(x = rexp(n, lambda), type = 'histogram')  %>% layout(title = "r's exponetial sampler", xaxis =list(title = 'observations'))
+plot_ly(x = qexp(p), type = 'histogram')  %>% layout(title = "r's quatile function with random p(X<x) values", xaxis =list(title = 'observations'))
+```
+
+
+A theoretical ordered exponential sample 
+```{r}
+i <- 1:n
+ordered.p <- sapply(i, function(i){ i/(n+1)})
+ordered.therotrical.expo <- expo.quant(ordered.p,lambda)
+```
+
+
+QQ plot 
+```{r}
+ordered.sample <- sort(expo.sims )
+
+plot_ly(x =ordered.therotrical.expo , y =ordered.sample  ,  type = 'scatter', mode ='markers')  %>% layout(title = 'Exponetial QQ plot', xaxis =list(title = 'ordered theortical exponetial sample'), yaxis = list(title = 'our ordered simulated sample '))
+```
+
+
+## Baysian workflow 
+ 
+ 
+$$ p(A \ and \ B) = p(B | A)p(A)$$
+
+which we can rewrite as 
+```{r}
+
+```
+
+$$ p(B | A) = \frac{p(A \ and \ B)}{p(B)} $$
+
+And continue shufling around 
+
+$$ p(B | A) = \frac{p(\ A | B)p(B) }{p(A)}$$
+
+And since the A is given (i.e P(B|A)). it is a constant and 
+
+$$ p(B | A) \propto p(\ A | B)p(B) $$
+Note we can easily find k, the constant term, $\frac{1}{p(A)}$ by setting $\int_B k *p(B|A) dB =1$
+
+
+But what is the point of all that shuffling arround? Usually, we have distributions that determine the probability of a realization 
+occurring given some parameters of the distribution i.e $p(X=x| \theta)$. In the exponential case, for example, we have what is the probability of how long we will wait for an event to occur, given that we expect that we know the rate of that event occurring(i.e it occurs 5 times in an hour). But we seldom know this rate, and can only observe observations that follow this exponential process.
+So we do the above Bayesian mathematics and model, instead, the rate given the observations which are called the posterior distribution. And determine with some uncertainty what the rate actually is. 
+
+$$  f(x|\lambda) = \lambda e^{- \lambda x}$$
+The likelihood is the probability that the parameters fit observations. Or simply, it is the likelihood of the parameters. It is found by the product of all the independent identically exponential distributions that each observation follows, i.e their joint probability by independence given the parameters. We can then infer what lambda is given all the observations 
+$$ l(\lambda) = \lambda^{n} e^{-\lambda \sum x_i}  $$
+IN the Bayesian paradigm of statistics we define probability as our current subject belive that something occurs. Hence we have the prior belief of what the true rate of this exponential process is even if we are vague about it. But it is subjective always, even if you decide to ignore your subjective beliefs for simplicity, you still have made a subjective decision to choose how you view 
+things as ignorant which are perfectly acceptable in Bayes.
+
+$$ p(\lambda) \propto \lambda^{a-1} e^{-b \lambda}$$
+
+Our prior beliefs are always changing and being updated by new information. Likewise to form a new belief of what we expect the true rate of this exponential process to be we update our prior distribution with what was actually observed (the likelihood) to form our new belief (the posterior). it seems natural then that the prior distribution and the posterior distribution are the same because they are both the distribution of our current belief of what the true exponential rate is, before and after the experiment. 
+$$ p(\lambda | x) = \lambda^{n+a-1} e^{-\lambda (\sum x_i+b)}  $$
+
+where $\lambda | x$ ~ $gamma(n+1, \sum x_i +b)$
+
+This new posterior distribution can become our prior belives if we what to observe more observations to update our beliefs. Because probability is defined as our current belief of something occurring 
+
+```{r}
+lambda <- 1/10
+observations <- rexp(1000, lambda) # so we know that the posterior should indicate that lamda is around 1/10
+
+plot_ly(x = observations, type = 'histogram')  %>% layout(title = "Histogram of waiting times", xaxis =list(title = 'wating times'))
+
+```
+
+
+```{r}
+a <- 1
+b <- 1
+hype.a <- length(observations)+a
+hype.b <-  sum(observations)+b
+
+possiblelambda <- seq(0,0.2, 0.0001)
+posterior <- dgamma(possiblelambda, shape = hype.a , rate = hype.b)
+
+plot_ly(x =possiblelambda , y = posterior   ,  type = 'scatter', mode ='markers')  %>% layout(title = 'Posterior of simulated exponetial sample given that lambda = 1/10', xaxis =list(title = 'possible rate'), yaxis = list(title = 'our belief about what the true rate is'))
+
+```
+
+Since the posterior is proportional to $p(B|A)P(A)$ we can multiply or divide the posterior by anything. For instance, we could divide the posterior by the maximin likelihood. Thus we cap the posterior density at 1. 
+
+```{r}
+plot_ly(x =possiblelambda , y = posterior/max(posterior)  ,  type = 'scatter', mode ='markers')  %>% layout(title = 'Posterior of simulated exponetial sample given that lambda = 1/10', xaxis =list(title = 'possible rate'), yaxis = list(title = 'our belief about what the true rate is'))
+
+```
+
+
+
+
+If we take the log of the posterior, we get 
+
+$$ log(p(B | A)) = log(p(\ A | B)) + log(p(B)) - log({p(A)})$$
+which rememeber is porportional to 
+$$ log(p(B | A)) \propto log(p(\ A | B)) + log(p(B))$$
+Since A is given as and is thus a constant. Taking the log of the posterior means we can change the constant to whatever we want because the log posterior will still be proportional to it. We can, then, take the log posterior and subtract its maximin likelihood.  It will then be capped at 1. Taking the log of the posterior can help simplify the posterior in certain problems. 
+
+```{r}
+plot_ly(x =possiblelambda , y = exp( log(posterior) - log(max(posterior)))  ,  type = 'scatter', mode ='markers')  %>% layout(title = 'Posterior of simulated exponetial sample given that lambda = 7', xaxis =list(title = 'possible rate'), yaxis = list(title = 'our belief about what the true rate is'))
+
+```
+
+# Simulation observations from posterior
+
+Since we have modeled our new belief of where we think the true rate parameter could be. We could use this to simulate new obesrvations of waitng times
+
+
+
+Just a quick recap
+$$ P(A \ and \ B) = P(B|A) P(A) $$
+
+To get A alone
+$$ P(A) = \int_B P(A \ and \ B) dB $$
+
+
+We want 
+$$P(x^{new}| x^{old})$$
+
+but what we currently have is 
+$$P(\lambda|X^{old})$$
+
+
+
+$$ P( \lambda \ and \ X^{new} ) =  P(X^{new}| \lambda)P(\lambda)$$
+
+
+$$P( X^{new} ) =  \int_\lambda P( \lambda  \ and \ X^{new} ) d \lambda =   \int_\lambda P(X^{new}| \lambda)P(\lambda ) d \lambda $$
+
+We create simulations to find with some uncertainty what the new observations are.
+
+First, I simulate $\lambda$ from posterior.
+```{r}
+sims.lambda <-  sample(possiblelambda , 1000, TRUE,posterior)
+plot_ly(x = sims.lambda, type = 'histogram')  %>% layout(title = "Histogram of sims of lambda", xaxis =list(title = 'lambda'))
+```
+
+
+I use these to simulate new observations 
+```{r}
+wating.times <- rexp(10000, sims.lambda )
+plot_ly(x = wating.times , type = 'histogram')  %>% layout(title = "Histogram of sims of waiting times", xaxis =list(title = 'wating times'))
+```
+
+And, we have the this above amazing result. Thank you for your time. 
+
+

@@ -1,0 +1,6 @@
+"0",""
+"0","plot_ly(x =mat.results[,1], name='lower 0.05 hpd interval', alpha = 0.7 ) %>% add_histogram() %>%"
+"0","  add_histogram(x =mat.results[,2],  name='upper 0.95  hpd interval') %>%"
+"0","  add_histogram(x =mat.results[,3],  name='median') %>%"
+"0","  add_histogram(x =mat.results[,4],  name='mean') %>%"
+"0","  layout(barmode='overlay', title = 'Hostogram of simulation study results', margin='carpet')"

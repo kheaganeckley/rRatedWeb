@@ -1,0 +1,119 @@
+---
+title: Extreme values project
+author: kheagan
+date: '2020-03-15'
+slug: extreme-values-project
+categories: []
+tags: []
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(ReIns)
+library(rstan)
+```
+
+```{r}
+df <- read.csv2('norwegianfire.txt', sep = '\t', col.names = c('claim size', 'year') )
+head(df)
+plot_ly( x = df$year ,  y = df$claim.size ) %>% add_bars() %>% layout(title='plot of clams per year')
+```
+
+
+
+
+
+```{r}
+data.81 <- df[df$year == 81,]
+data.81 <- sort(data.81$claim.size)
+length <- length(data.81)
+plot_ly(x = 1:length, y = data.81 ) %>% add_markers()
+```
+
+
+
+### p(X<x)
+```{r}
+p <-(1:length)/(length + 1)
+k <- 1: (length -1)
+```
+
+### quantiles 
+```{r}
+E.ordered.quants <- -log(1 - p )
+NormQuats <- qnorm(p) # for log normal take log of the data 
+
+##on the log meaning take the log of the data 
+WeibullQuants <- log(-log(1 - p))
+ParetoQuants <- -log(1 - p)
+
+```
+
+
+emperical hill
+```{r}
+
+data <- data.81
+Hill.log <- cumsum( log(data[length - k + 1]) )/ k - log(data[length - k])
+Hill <- cumsum(data[length - k + 1])/ k - data[length - k]
+
+
+fig1 <- plot_ly(x=k, y= Hill[1:(length-1)], name='Hill') %>% add_lines()
+fig2 <- plot_ly(x=k, y= Hill.log[1:(length-1)], name='log Hill') %>% add_lines()
+
+subplot(fig1, fig2)
+```
+
+theroricaal hill
+```{r}
+hill.exponetial <- 1/k*cumsum(E.ordered.quants[length-k+1]) - E.ordered.quants[length-k]
+hill.weibull <- 1/k*cumsum(WeibullQuants[length-k+1]) - WeibullQuants[length-k]
+hill.normal <- 1/k*cumsum(NormQuats[length-k+1]) - NormQuats[length-k]
+hill.pareto <- 1/k*cumsum(ParetoQuants[length-k+1]) - ParetoQuants[length-k]
+```
+
+
+
+Y change in x change
+```{r}
+
+fig1 <- plot_ly(x = k, y = Hill/hill.exponetial, name='Exponetial ') %>% add_lines() %>% layout(title='Dervitive plots', margin='carpet')
+fig2 <- plot_ly(x = k, y = Hill.log/hill.weibull, name= 'Weibull' )  %>% add_lines()
+fig3 <- plot_ly(x = k, y = Hill/hill.normal, name = 'Normal quantiles')  %>% add_lines()
+fig4 <- plot_ly(x = k, y = Hill.log/hill.normal , name='Log normal')  %>% add_lines()
+fig5 <- plot_ly(x = k, y = Hill.log/hill.pareto, name='Pareto' )  %>% add_lines()
+
+subplot(fig1,fig2,fig3,fig4,fig5, nrows = 3,which_layout =1 )
+```
+
+
+
+
+```{r}
+
+fig1 <- plot_ly(x= E.ordered.quants, y= data, name='Exponetial ') %>% add_lines() %>% layout(title='Ordered data vs ordered theotrical data ', margin='carpet')
+fig2 <- plot_ly(x= WeibullQuants, y=log(data), name= 'Weibull' )  %>% add_lines()
+fig3 <- plot_ly(x= NormQuats, y=data, name = 'Normal quantiles')  %>% add_lines()
+fig4 <- plot_ly(x= NormQuats, y= log(data) , name='Log normal')  %>% add_lines()
+fig5 <- plot_ly(x= ParetoQuants, y= log(data), name='Pareto' )  %>% add_lines()
+
+subplot(fig1,fig2,fig3,fig4,fig5, nrows = 3,which_layout =1 )
+```
+
+
+
+
+
+
+
+
+```{r}
+POT()
+```
+
+
+
+
+
+

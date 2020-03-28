@@ -1,0 +1,4 @@
+"0","```r
+
+plot_ly(x= E.ordered.quants, y= data.81) %>% add_lines() %>% layout(title='Exponetial QQ')
+```"

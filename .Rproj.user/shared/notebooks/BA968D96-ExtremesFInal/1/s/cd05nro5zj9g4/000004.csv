@@ -1,0 +1,1 @@
+"0","plot_ly( x = df$year ,  y = df$claim.size ) %>% add_bars() %>% layout(title='plot of clams per year')"

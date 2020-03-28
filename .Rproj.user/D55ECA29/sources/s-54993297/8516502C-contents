@@ -1,0 +1,149 @@
+---
+title: 'Crono virus '
+author: kheagan
+date: '2020-03-16'
+slug: crono-virus
+categories: []
+tags: []
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+```
+
+
+
+
+
+#  The crono virus example
+
+The vague priors 
+
+a = 0.5
+b = 0.5 
+
+
+The number of people in bloemfonetien 556 000 (from google AI system)
+
+The corono virus:
+[link](https://www.worldometers.info/coronavirus/) - numbers which are constantly updating.  
+98 436 cases
+3 387 deaths
+
+From [link](https://www.contagionlive.com/news/cdc-reports-13-million-flu-cases-thus-far-in-201920-season)
+
+16.5 million medical vists 
+490600 hospitializations (serious cases of the common flu)
+34200 deaths 
+
+I will only consider serious cases of the common flu
+
+
+
+Based on itally 
+
+cases 25000
+population 60 480 000 
+
+
+
+
+The density of the data is binomial. 
+$$f(x| \pi) \propto  \pi^{x}(1-\pi)^{n-x} $$
+The likihood of the paramters is
+$$l(\pi) \propto  \pi^{\sum x_i}(1-\pi)^{\sum (n-x_i)} $$
+The prior is
+$$p(\pi) \propto \pi^{a-1}(1-\pi)^{b-1} $$
+
+The posterior is 
+$$p(\pi|x) \propto \pi^{a+\sum x_i-1}(1-\pi)^{b+\sum (n-x_i)-1} $$
+
+
+cases 25000
+population 60 480 000 
+
+
+
+## expected number of cases 
+```{r}
+a <- 0.5
+b <- 0.5
+
+x <- seq(0.00001,0.01,0.000001)
+
+italy.north.pop <-27801460
+italy.cases <- 25000
+
+
+y.crono.num <- dbeta(x, italy.cases + a, b+ (italy.north.pop- italy.cases), log = T)
+
+fig1 <- plot_ly(x=x, y=y.crono.num) %>% add_lines() %>% layout(title='log posterior pi for crono')
+
+fig2 <-  plot_ly(x=x, y=exp(y.crono.num-max(y.crono.num)) ) %>% add_lines() %>% layout(title='log posterior pi for crono')
+
+
+sims.n.crono <- rbeta(1000, italy.cases + a, b+ (italy.north.pop- italy.cases) )
+
+fig3 <-  plot_ly(x= sims.n.crono) %>% add_histogram() %>% layout(title='log posterior pi for crono')
+
+
+
+subplot(fig1, fig2, fig3)
+```
+
+
+
+
+
+
+```{r}
+a <- 0.5
+b <- 0.5
+
+x <- seq(0.02,0.08,0.0001)
+y.crono <- dbeta(x, 3387 + a, b+ (98436-3387),  log= T)
+y.crono.sims <- rbeta(1000, 3387 + a, b+ (98436-3387))
+
+
+
+fig1 <- plot_ly(x=x, y= y.crono, name='posterior pi deaths') %>% add_lines()
+
+fig2 <- plot_ly(x=x, y= exp(y.crono-max(y.crono)), name='scaled posterior pi deaths' ) %>% add_lines()
+
+fig3 <- plot_ly(x=y.crono.sims, name='simulated pi deaths') %>% add_histogram()
+
+subplot(fig1, fig2, fig3)
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+# crono virus 
+556 000 
+```{r}
+population <- 56000000
+
+expected.deaths <- sapply(rbinom(1000, population ,sims.n.crono), function(n){
+  mean(rbinom(1000, n, y.crono.sims))
+})
+
+
+plot_ly(x=expected.deaths) %>% add_histogram() %>% layout(title='expected deaths')
+
+```
+
+```{r}
+mean(expected.deaths)
+```
+
+
+

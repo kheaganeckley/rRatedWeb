@@ -1,0 +1,8 @@
+"0","population <- 56000000"
+"0",""
+"0","expected.deaths <- sapply(rbinom(1000, population ,sims.n.crono), function(n){"
+"0","  mean(rbinom(1000, n, y.crono.sims))"
+"0","})"
+"0",""
+"0",""
+"0","plot_ly(x=expected.deaths) %>% add_histogram() %>% layout(title='expected deaths')"

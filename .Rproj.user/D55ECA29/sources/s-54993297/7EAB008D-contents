@@ -1,0 +1,774 @@
+---
+title: "Baysian approach to infrence on common distributions(with rstan)"
+author: "kheagan"
+date: '2020-03-15'
+slug: baysian-approach-to-infrence-on-common-distributions-with-rstan
+tags: []
+categories: []
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(rstan)
+```
+
+
+
+
+# reasons to wrok with the log posterior 
+
+-It shows you the domain of paramter. Very important. 
+- exp(800)exp(-800)=1 BUT it is nan in r. becuase it veiws exp(800) as inf and exp(-800) as zero and it can't compute. 
+- thus it is overall more stable
+
+
+10:30
+
+## exponetial 
+
+The density
+$$f(x | \lambda ) = \lambda e^{-\lambda x}$$
+The likleyhood
+$$l( \lambda) = \lambda ^{n} e^{-\lambda \sum x_i }$$
+
+The prior 
+$$p(\lambda) \propto  \lambda^{a-1}e^{-b \lambda}$$
+
+The posterior 
+$$p(\lambda | x)  \propto \lambda ^{a+n-1} e^{-\lambda (b+\sum x_i)} $$
+
+
+The log posterior 
+$$logp(\lambda | x)  \propto (a+n-1)log(\lambda )  {-\lambda (b+\sum x_i)} $$
+
+
+
+p = 1- e^(-lx) = p(X<x)
+e^(-lx) = 1 - p
+-lx = ln(1-p)
+x =  -ln(1-p)/l
+
+
+```{r}
+rex <- function(p, lambda){-log(1-p)/lambda}
+```
+
+
+```{r}
+lambda <- 1/9 #rate of occrance 1 in 9 hours
+
+p <- runif(1000)
+sample <- rex(p, lambda)
+plot_ly(x=sample) %>% add_histogram()
+```
+
+$$log(p(\lambda | x))  \propto (a+n-1)log(\lambda )  -\lambda (b+\sum x_i) $$
+
+```{r}
+log.post.exp <- function(lambda, sum.x, n){
+  (n-1)*log(lambda) -lambda*(sum.x)
+}
+```
+
+
+
+```{r}
+sum.x <- sum(sample)
+n <- length(sample)
+
+a <- 5
+b <- 1
+
+posible.lambda <- seq(0.0001, 1, 0.001)
+log.post.lambda <- log.post.exp(posible.lambda, sum.x, n)
+
+fig1 <- plot_ly(x=posible.lambda, y= log.post.lambda, name='log posterior'  ) %>% add_lines() 
+fig2 <- plot_ly(x=posible.lambda, y= exp(log.post.lambda- max(log.post.lambda)), name = 'scaled posterior'  ) %>% add_lines()
+fig3 <- plot_ly(x=posible.lambda, y= exp(log.post.lambda- max(log.post.lambda)), name = 'scaled posterior')%>%
+add_lines() %>% 
+layout(xaxis=list(range=c(0.08, 0.14)))
+
+subplot(fig1, fig2, fig3)
+```
+
+
+
+
+```{r}
+hpd <- function(nsims, postsims, alpha){ #by Sean vdMerwe... ufs 
+  sorted.postsims <- sort(postsims)
+  numints <- floor(nsims * alpha)
+  gap <- round (nsims* (1-alpha))
+  widths <- sorted.postsims [(1+ gap ) :( numints + gap ) ] - sorted.postsims[1: numints]
+  HPD <- sorted.postsims [ c ( which.min ( widths ) ,( which.min( widths ) + gap ) ) ]
+  return(HPD)
+}
+```
+
+
+```{r}
+n.sims <- 1000
+sims.lambda <-sample(posible.lambda, n.sims, TRUE, exp(log.post.lambda- max(log.post.lambda)))
+HPD <- hpd(n.sims, sims.lambda, 0.05)
+results <- c(HPD[1], HPD[2],median(sims.lambda), mean(sims.lambda))
+results
+plot_ly(x=sims.lambda) %>% add_histogram() %>% layout(title = 'Hostogram of sims for lambda, the rate', margin='carpet')
+```
+
+Creating new observations
+```{r}
+p <- runif(1000)
+newobs <- rex(p, sims.lambda)
+plot_ly(x= newobs) %>% add_histogram() %>%
+  layout(title = 'Hostogram of sims for new observations, given the rate', margin='carpet')
+```
+
+
+
+
+
+
+# simulation study 
+```{r}
+
+lambda <- 1/9 #rate of occrance 1 in 9 hours
+
+samples.size <- 1000
+sample.size <- 100
+
+mat.samples <- matrix(NA, nrow = samples.size, ncol = sample.size)
+
+for(i in 1:samples.size){
+   p <- runif(sample.size)
+   sample <- rex(p, lambda)
+   mat.samples[i,] <- sample
+}
+
+```
+
+
+
+```{r}
+n.sims.lambda <- 1000
+
+mat.results <- matrix(NA, nrow = samples.size, ncol = 4)
+posible.lambda <- seq(0.0001, 3, 0.001)
+
+for(i in 1:samples.size){
+   current.sample <- mat.samples[i,]
+   log.post.lambda <- log.post.exp(posible.lambda,  sum(current.sample), sample.size)
+   sims.lambda <-sample(posible.lambda, n.sims.lambda, TRUE, exp(log.post.lambda- max(log.post.lambda)))
+   HPD <- hpd(n.sims, sims.lambda, 0.05)
+   results <- c(HPD[1], HPD[2],median(sims.lambda), mean(sims.lambda))
+   mat.results[i,] <- results 
+}
+```
+
+
+```{r}
+
+plot_ly(x =mat.results[,1], name='lower 0.05 hpd interval', alpha = 0.7 ) %>% add_histogram() %>%
+  add_histogram(x =mat.results[,2],  name='upper 0.95  hpd interval') %>%
+  add_histogram(x =mat.results[,3],  name='median') %>%
+  add_histogram(x =mat.results[,4],  name='mean') %>%
+  layout(barmode='overlay', title = 'Hostogram of simulation study results', margin='carpet')
+
+```
+
+
+
+## rstan 
+```{stan output.var='expmodel'}
+data{
+  int<lower=0> length;
+  real<lower=0> obs[length];
+}
+parameters{
+  real<lower=0> lambda;
+}
+model{
+  lambda  ~ gamma(1,1);
+  obs ~ exponential(lambda);
+}
+
+```
+
+
+```{r}
+stan.data <- list(obs=sample, length=length(sample)) #stan varible = r varible
+myfit <- sampling(expmodel, stan.data, c('lambda'))
+traceplot(myfit)
+simulations <- extract(myfit)
+s.lambda <- simulations$lambda 
+```
+
+
+
+```{r}
+plot_ly(x = s.lambda, name='lower 0.05 hpd interval', alpha = 0.7 ) %>% add_histogram() 
+```
+
+
+```{r}
+sims.lambda <- rexp(1000,s.lambda)
+plot_ly(x = sims.lambda, alpha = 0.7 ) %>% add_histogram() %>% layout( title ='sims of expected waiting times' ,margin='carpet')
+```
+
+
+
+# Possion example 
+
+12:12
+the density
+$$f(x| \lambda) = \frac{\lambda^{x}e^{-\lambda}}{x!} $$
+
+
+the liklihood
+$$l(\lambda) \propto \lambda^{\sum x_i}e^{-\lambda n} $$
+
+The prior
+$$ p(\lambda) \propto \lambda^{a-1}e^{-\lambda b } $$
+
+The posterior
+$$  p(\lambda | x)  \propto \lambda^{a + \sum x_i-1}e^{-\lambda(b+n)} $$
+
+
+The log posterior
+$$  log(p(\lambda | x))  \propto (a + \sum x_i-1)log(\lambda) - \lambda(b+n) $$
+
+
+
+
+
+
+```{r}
+
+time <- 40
+lambda.t <- time*lambda #occurances
+
+sample <- rpois(1000,lambda.t)
+plot_ly(x=sample) %>% add_histogram() %>% layout(title = 'Hostogram of sims lambda.t, expected occurances', margin='carpet')
+
+```
+
+
+The log posterior
+$$  log(p(\lambda | x))  \propto (a + \sum x_i-1)log(\lambda) - \lambda(b+n) $$
+
+
+```{r}
+log.posterior.lambda.t <- function(lambda,sum.x, n,a,b){
+  (a+sum.x-1)*log(lambda) - lambda*(b+n)
+}
+```
+
+
+```{r}
+
+sum.x <- sum(sample )
+n <- length(sample)
+a <-0.001
+b <- 0.001
+
+possible.lambda.t <- seq(1.5,10, 0.1)
+log.posterior.lambda.t.s <- log.posterior.lambda.t(possible.lambda.t, sum.x, n, a,b ) 
+
+n.sims.lamdba.t.s <- 1000
+sims.lamdba.t.s <- sample(possible.lambda.t,  n.sims.lamdba.t.s, TRUE, exp(log.posterior.lambda.t.s -max(log.posterior.lambda.t.s)))
+
+
+fig1 <- plot_ly(x=possible.lambda.t, y=log.posterior.lambda.t.s, name='log posterior') %>% add_lines()
+fig2 <-  plot_ly(x=possible.lambda.t, y=exp(log.posterior.lambda.t.s-max(log.posterior.lambda.t.s) ), name='scaled posterior' ) %>% add_lines()
+fig3 <-  plot_ly(x=sims.lamdba.t.s , name='sims.lambda.t.s' ) %>% add_histogram()
+subplot(fig1, fig2, fig3)
+```
+
+# new observations 
+```{r}
+obs1 <- rpois(10000, sims.lamdba.t.s)  # one sample of 10000
+obs2 <- rpois(10000, sims.lamdba.t.s)  # one sample of 10000 
+
+plot_ly(x=obs1, y=obs2) %>% add_histogram2d() %>% layout(title='joint distribution')
+
+```
+
+# simulaition study
+```{r}
+
+
+n.sims.lambda.t <- 1000
+time <- 40
+lambda.t <- time*lambda #expected occurances time * rate
+
+
+samples.size <- 1000
+sample.size <- 100
+
+mat.samples.pos <- matrix(NA, nrow = samples.size, ncol = sample.size)
+
+for(i in 1:samples.size){
+   sample <- rpois(sample.size,lambda.t)
+   mat.samples.pos[i,] <- sample
+}
+
+```
+
+
+
+```{r}
+mat.results.pos <- matrix(NA, nrow = samples.size, ncol = 4)
+possible.lambda.t <- seq(1.5,10, 0.1)
+
+
+
+for(i in 1:samples.size){
+   current.sample <- mat.samples.pos[i,]
+   log.post.lambda.t.s <- log.posterior.lambda.t(possible.lambda.t, sum( current.sample), sample.size, a,b)
+   sims.lambda.t <-sample(possible.lambda.t  ,sample.size, TRUE, exp( log.post.lambda.t.s  -max( log.post.lambda.t.s )))
+   HPD <- hpd( sample.size, sims.lambda.t, 0.05)
+   results <- c(HPD[1], HPD[2],median(   sims.lambda.t ), mean(   sims.lambda.t ))
+   mat.results.pos[i,] <- results 
+}
+```
+
+
+```{r}
+
+plot_ly(x =mat.results.pos[,1], name='lower 0.05 hpd interval', alpha = 0.7 ) %>% add_histogram() %>%
+  add_histogram(x =mat.results.pos[,2],  name='upper 0.95  hpd interval') %>%
+  add_histogram(x =mat.results.pos[,3],  name='median') %>%
+  add_histogram(x =mat.results.pos[,4],  name='mean') %>%
+  layout(barmode='overlay', title = 'Hostogram of simulation study results', margin='carpet')
+
+```
+
+
+## rstan 
+```{stan output.var='posmodel'}
+data{
+  int<lower=0> length;
+  int<lower=0> obs[length];
+}
+parameters{
+  real<lower=0> lambdaT;
+}
+model{
+  lambdaT  ~ gamma(1,1);
+  obs ~ poisson(lambdaT);
+}
+
+```
+
+
+```{r}
+stan.data <- list(obs=sample, length=length(sample)) #stan varible = r varible
+myfit <- sampling(posmodel, stan.data, c('lambdaT'))
+traceplot(myfit)
+simulations <- extract(myfit)
+s.lambdaT <- simulations$lambdaT 
+```
+
+```{r}
+
+plot_ly(x=s.lambdaT) %>% add_histogram() %>% layout(title='histogram of lambda*t sims')
+```
+## new obs with stan
+
+```{r}
+S.sims.obs <- rpois(1000, s.lambdaT)
+plot_ly(x=S.sims.obs) %>% add_histogram()
+```
+
+
+# Binomial 
+13:10
+
+the density
+$$f(x| \pi) = \frac{n!}{x!(n-x)!} \pi^{x} (1-\pi)^{n-x } $$
+the liklyhood
+$$l(\pi) \propto \pi^{\sum x_i} (1-\pi)^{\sum n_i-x_i } $$
+
+The prior 
+$$p(\pi) \propto  \pi^{a-1}(1-\pi)^{b-1}$$
+The posterior 
+$$p(\pi| x) \propto \pi^{(a+\sum x_i -1)} (1-\pi)^{(b+\sum n_i-x_i -1)} $$
+
+The log posterior 
+$$log(p(\pi| x)) \propto  (a+\sum x_i -1) log(\pi) + (b+\sum n_i-x_i -1)log(1-\pi) $$
+
+
+
+```{r}
+n <- 24
+pi <- 8/24 
+n.obs <- 1000
+
+obs <- rbinom(n.obs, n, pi )
+plot_ly(x=obs) %>% add_histogram()
+
+```
+
+The log posterior 
+$$ log( p(\pi| x)) \propto  (a+\sum x_i -1) log(\pi) + (b+\sum n_i-x_i -1)log(1-\pi) $$
+
+
+
+```{r}
+log.posterior.pi <- function(pi, sum.obs, n.obs, n,a,b){
+  (a +sum.obs-1)*log(pi) + (b+ (n.obs*n)-sum.obs-1)*log(1-pi)
+}
+```
+
+```{r}
+
+sum.obs <- sum(obs)
+n.obs <- length(obs)
+n <- 24
+a <-0
+b <-0
+
+possible.pi <- seq(0,1, 0.001)
+
+log.posterior.pi.s <- log.posterior.pi(possible.pi, sum.obs, n.obs, n, a,b) 
+
+sims.posterior.pi.s <-sample(possible.pi, 10000, TRUE, exp(log.posterior.pi.s-max(log.posterior.pi.s)) )
+
+fig1 <- plot_ly(x=possible.pi, y=log.posterior.pi.s, name = 'log posterior') %>% add_lines()
+fig2 <- plot_ly(x=possible.pi, y=exp(log.posterior.pi.s-max(log.posterior.pi.s)  ), name='scaled posterior' ) %>% add_lines()
+fig3 <- plot_ly(x=sims.posterior.pi.s, name='sims of pi' ) %>% add_histogram()
+
+subplot(fig1, fig2, fig3)
+
+```
+
+
+## new observations 
+
+```{r}
+
+obs1 <- rbinom(1000, 24, sims.posterior.pi.s) # one sample of 10000 
+obs2 <- rbinom(1000, 12, sims.posterior.pi.s) # one sample of 10000 
+
+plot_ly(x=obs1, y=obs2) %>% add_histogram2d()
+```
+
+
+# simulaition study
+```{r}
+
+n <- 24
+pi <- 8/24 
+n.obs <- 1000
+
+
+samples.size <- 1000
+
+
+mat.samples.bin <- matrix(NA, nrow = samples.size, ncol = sample.size)
+
+for(i in 1:samples.size){
+   sample <- rbinom(sample.size, n, pi )
+   mat.samples.bin[i,] <- sample
+}
+
+```
+
+
+
+```{r}
+mat.results.bin <- matrix(NA, nrow = samples.size, ncol = 4)
+
+
+n <- 24
+a <-0
+b <-0
+
+possible.pi <- seq(0,1, 0.001)
+
+
+
+for(i in 1:samples.size){
+   current.sample <- mat.samples.bin[i,]
+   log.post.pi.s <- log.posterior.pi(possible.pi,  sum( current.sample),  sample.size, n, a,b) 
+   sims.pi <-sample(possible.pi   ,sample.size, TRUE, exp( log.post.pi.s -max( log.post.pi.s )))
+   HPD <- hpd( sample.size,    sims.pi, 0.05)
+   results <- c(HPD[1], HPD[2],median(      sims.pi ),    mean(sims.pi ))
+   mat.results.bin[i,] <- results 
+}
+```
+
+
+```{r}
+
+plot_ly(x =mat.results.bin[,1], name='lower 0.05 hpd interval', alpha = 0.7 ) %>% add_histogram() %>%
+  add_histogram(x =mat.results.bin[,2],  name='upper 0.95  hpd interval') %>%
+  add_histogram(x =mat.results.bin[,3],  name='median') %>%
+  add_histogram(x =mat.results.bin[,4],  name='mean') %>%
+  layout(barmode='overlay', title = 'Hostogram of simulation study results', margin='carpet')
+
+```
+
+
+
+## rstan 
+```{stan output.var='binmodel'}
+data{
+  int<lower=0> length;
+  int<lower=0> obs[length];
+}
+parameters{
+  real<lower=0> pi;
+}
+model{
+  pi ~ beta(0.5,0.5);
+  obs ~ binomial(24,pi);
+}
+
+```
+
+
+```{r}
+stan.data <- list(obs=sample, length=length(sample)) #stan varible = r varible
+myfit <- sampling(binmodel, stan.data, c('pi'))
+traceplot(myfit)
+simulations <- extract(myfit)
+s.lambdapi <- simulations$pi
+```
+
+
+```{r}
+plot_ly(x=s.lambdapi) %>% add_histogram() %>% layout(title='Simulations for pi')
+```
+
+```{r}
+new.s.bin.obs <- rbinom(1000,24, s.lambdapi)
+plot_ly(x=new.s.bin.obs ) %>% add_histogram() %>% layout(title='Simulations of new bin observations')
+```
+
+
+
+
+
+# my custom functions
+
+```{r}
+
+hpd <- function(nsims, postsims, alpha){ #by Sean vdMerwe... ufs 
+      sorted.postsims <- sort(postsims)
+      numints <- floor(nsims * alpha)
+      gap <- round (nsims* (1-alpha))
+      widths <- sorted.postsims [(1+ gap ) :( numints + gap ) ] - sorted.postsims[1: numints]
+      HPD <- sorted.postsims [ c ( which.min ( widths ) ,( which.min( widths ) + gap ) ) ]
+    return(HPD)
+}  
+
+
+bayes.helper <- function(param, data, n.sims, plotly=FALSE, plots =FALSE, log.density, log.prior, alpha){
+  ####### first the paramter then the data f(param,data) ####################
+
+  #log posterior proprtional to log(product of density and prior), which is proprtional to 
+  # sum(log(desity)+log(prior))
+  log.posterior <- sapply(param, function(param){ sum(log.density(param, data))+ log.prior(param) })
+  scaled.posterior <- exp( log.posterior - max(log.posterior) )
+  sims.param <- sample(param, n.sims, TRUE,  scaled.posterior)
+  
+  ## ploting
+  if(plots){
+      if(plotly){
+        fig1 <- plot_ly(x=param, y= log.posterior, name='log posterior') %>% add_lines()
+        fig2 <- plot_ly(x=param, y=  scaled.posterior, name = 'scaled posterior' ) %>% add_lines()
+        fig3 <- plot_ly(x=sims.param, name='simulations of the paramter') %>% add_histogram()
+        print(subplot(fig1, fig2, fig3))
+      }else{
+        plot(x=param, y=log.posterior, main='log posterior', col='blue', type='l', bg = 'blue')
+        plot(x=param, y= scaled.posterior, main='scaled posterior', col='navy',type='l', bg = 'blue')
+        hist(sims.param, main='histogram of simulated paramter', lty=3, col='purple', bg = 'blue')
+      }
+  }
+
+  # Mean: Under Squared Error Loss (an answer twice as far from the truth is 4
+    #times as bad) the optimal estimate of a parameter (in this case p) is
+    #its posterior mean.
+  
+  # Median: Under Absolute Error Loss (an answer twice as far from the truth is 2
+    #times as bad) the optimal estimate of a parameter (in this case p) is
+    #its posterior median.
+  
+  # Mode: The posterior mode is the analogue of the maximum likelihood
+    #(precisely the same in the case of a Uniform prior) and is optimal
+    #under all-or-nothing loss.
+  
+  
+  
+  prob.equal.1 <-(scaled.posterior/sum(scaled.posterior))
+  
+  # mean
+    # Discretization
+     post.mean.discretization <- sum(param *  prob.equal.1  ) # think expected value
+    # Simulation
+     post.mean.simulation <-  mean(sims.param)
+   
+  # median
+    # Discretization
+      
+     F.emperical <- cumsum( scaled.posterior )/sum( scaled.posterior )
+      post.median.discretization <-param[ match(1, F.emperical >0.5)]  #1 number after this is median think 1st year 
+    # Simulation
+      post.median.simulation  <- median(sims.param )
+     
+  # mode
+    # Discretization
+      postmode <-param[which.max( prob.equal.1 )] # well that top bit is the maximine of liklhood (in bayes the prior might be diffrent to freq) 
+  # quartiles 
+     HPD <-hpd( n.sims, sims.param, alpha)
+
+  # mean, median, mode, lower, upper
+  results.discretization  <-  c(post.mean.discretization,   post.median.discretization,  postmode, HPD[1], HPD[2] )
+  
+  # mean, median, lower, upper
+  results.simulation <-  c( post.mean.simulation,   post.median.simulation,  HPD[1], HPD[2] ) 
+
+  
+  # scaled posetrior, log posteror, simulation results, discretization results
+  
+  return(list(scaled.posterior, log.posterior, sims.param, results.simulation, results.discretization))
+} 
+
+```
+
+
+
+# simulation study
+
+create samples matrix
+```{r}
+
+create.samples.matrix <- function(samples.size, sample.size,  sample.func){
+  mat.samples <- matrix(NA, nrow = samples.size, ncol = sample.size)
+  for(i in 1:samples.size){
+     mat.samples[i,] <- sample.func(runif(sample.size))
+  }
+  return(mat.samples)
+}
+
+
+simulation.study <- function(samples.size, sample.size, posible.lambda, sample.func,  log.den, log.p, alpha, n.sims, plot=FALSE ){
+ 
+  mat.samples <- create.samples.matrix(samples.size, sample.size, sample.func) 
+  mat.results.discrtization  <-  matrix(NA, ncol = 5, nrow = samples.size)
+  mat.results.simulation  <-   matrix(NA, ncol = 4, nrow = samples.size)
+
+  
+  for(i in 1:samples.size){
+     current.sample <- mat.samples[i,] 
+     out <- bayes.helper(posible.lambda,   current.sample, n.sims, F, F, log.den, log.p, alpha)
+     mat.results.discrtization[i,] <- unlist(out[5])
+     mat.results.simulation[i,] <-   unlist(out[4])
+  }
+  
+  if(plot){
+    fig1 <- plot_ly(x = mat.results.discrtization[,4],  name='lower 0.05 hpd interval ', alpha = 0.5 ) %>% add_histogram() %>%
+     add_histogram(x = mat.results.discrtization[,5],  name='lower 0.95 hpd interval ') %>%
+     add_histogram(x =  mat.results.discrtization[,3],  name='discretization mode') %>%
+     add_histogram( x = mat.results.discrtization[,1], name='discretization mean') %>%
+     add_histogram(x = mat.results.discrtization[,2],  name='discretization median') %>%
+     layout(barmode='overlay', title = 'Histogram of simulation study results by discretization', margin='carpet')
+    
+    fig2 <- plot_ly(x = mat.results.simulation[,1], name='simulation mean', alpha = 0.5 ) %>% add_histogram() %>%
+     add_histogram(x = mat.results.simulation[,2],  name='simulation median') %>%
+     add_histogram(x =  mat.results.simulation[,3],  name='lower 0.05 hpd interval') %>%
+     add_histogram(x = mat.results.simulation[,4],  name='upper 0.95 hpd interval ') %>%
+     layout(barmode='overlay', title = 'Histogram of simulation study results by simulation', margin='carpet')
+  
+    print(subplot(fig1, fig2))
+  }
+  
+  
+  return(list(mat.results.discrtization, mat.results.simulation))
+}
+```
+
+
+
+
+
+
+
+
+```{r}
+
+# randomnumber: p
+random.gen <-  function(p){qpois(p,(1/7)*14)}
+
+# log.density: param, data
+logdensity <- function(param, data){dpois(data, param , log = TRUE)}
+
+# log prior : param
+logprior <- function(param){1}
+
+# possible paramters
+possibleparam <- seq(0.5,1,0.001)
+
+# sims for the data ?
+n.sims.data <- 1000
+
+# hpd interval?
+alpha <- 0.05
+
+# sims for the paramter
+n.sims.param <- 1000
+
+# ingnore
+data <- sapply(runif(n.sims.data),  random.gen)
+
+#bayes.helper :  param, data, n.sims, plotly=FALSE, plots =FALSE, log.density, log.prior, alpha
+bays <-  bayes.helper(possibleparam , data, n.sims.param,  T, T, logdensity, logprior , alpha)
+
+output <- simulation.study(1000, 100, possibleparam , random.gen, logdensity, logprior, alpha, n.sims.param, plot=TRUE )
+ 
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+log.den <- function(lambda, data){
+  log(dexp(data, lambda))
+}
+
+log.p <- function(lambda){ 
+  a <- 0.1
+  b <- 0.1
+  return(log(dgamma(lambda, a,b))) 
+}
+
+
+posible.lambda <- seq(0.0001,1,0.0001)
+out <- bayes.helper(posible.lambda, sample, 1000, F, F, log.den, log.p, 0.05)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+unlist(out[4])
+```
+
+
+

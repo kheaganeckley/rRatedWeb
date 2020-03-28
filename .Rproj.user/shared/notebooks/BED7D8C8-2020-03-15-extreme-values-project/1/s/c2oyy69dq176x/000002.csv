@@ -1,0 +1,4 @@
+"0","data.81 <- df[df$year == 81,]"
+"0","data.81 <- sort(data.81$claim.size)"
+"0","length <- length(data.81)"
+"0","plot_ly(x = 1:length, y = data.81 ) %>% add_markers()"
